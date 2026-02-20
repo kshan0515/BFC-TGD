@@ -8,60 +8,64 @@ YOUTUBE_API_KEY = os.getenv('YOUTUBE_API_KEY')
 MONGO_URI = os.getenv('MONGO_URI')
 DB_NAME = 'bfc-tgd'
 
-def scrape_youtube(keyword='부천FC'):
+def scrape_youtube():
+    keywords = ['부천FC', '부천FC1995', 'BFC1995']
     if not YOUTUBE_API_KEY or not MONGO_URI:
         print("❌ Error: YOUTUBE_API_KEY or MONGO_URI environment variable is not set.")
         return
 
-    # 1주일 전 시간 계산 (RFC 3339 형식)
+    # 1주일 전 시간 계산
     time_threshold = (datetime.datetime.utcnow() - datetime.timedelta(days=7)).isoformat() + "Z"
-    print(f"🚀 Starting YouTube scrape for keyword: {keyword}")
+    print(f"🚀 Starting YouTube scrape for keywords: {', '.join(keywords)}")
     print(f"📅 Fetching videos published after: {time_threshold} (Last 7 days)")
 
     try:
         # 1. 유튜브 API 클라이언트 초기화
         youtube = build('youtube', 'v3', developerKey=YOUTUBE_API_KEY)
         
-        # 2. 영상 검색 (실시간성을 위해 최대 50개로 최적화)
-        collected_items = []
-        next_page_token = None
-        max_total_results = 50
+        all_collected_items = []
         
-        while len(collected_items) < max_total_results:
-            request = youtube.search().list(
-                part="snippet",
-                q=keyword,
-                maxResults=min(50, max_total_results - len(collected_items)), # API 제한인 50개씩 요청
-                type="video",
-                order="date",
-                publishedAfter=time_threshold,
-                pageToken=next_page_token
-            )
-            response = request.execute()
+        for keyword in keywords:
+            print(f"🔍 Searching for: {keyword}...")
+            collected_for_keyword = []
+            next_page_token = None
+            max_per_keyword = 50 # 각 키워드별 최대 50개
             
-            items = response.get('items', [])
-            if not items:
-                break
+            while len(collected_for_keyword) < max_per_keyword:
+                request = youtube.search().list(
+                    part="snippet",
+                    q=keyword,
+                    maxResults=50,
+                    type="video",
+                    order="date",
+                    publishedAfter=time_threshold,
+                    pageToken=next_page_token
+                )
+                response = request.execute()
                 
-            collected_items.extend(items)
-            next_page_token = response.get('nextPageToken')
+                items = response.get('items', [])
+                if not items:
+                    break
+                    
+                collected_for_keyword.extend(items)
+                next_page_token = response.get('nextPageToken')
+                
+                if not next_page_token:
+                    break
             
-            print(f"📦 Collected {len(collected_items)} / {max_total_results} items...")
-            
-            if not next_page_token:
-                break
+            all_collected_items.extend(collected_for_keyword)
+            print(f"✅ Found {len(collected_for_keyword)} items for '{keyword}'")
 
-        # 3. MongoDB Atlas 연결
+        # 2. MongoDB Atlas 연결
         client = MongoClient(MONGO_URI)
         db = client[DB_NAME]
         collection = db['contents']
 
         operations = []
-        for item in collected_items:
+        for item in all_collected_items:
             video_id = item['id']['videoId']
             snippet = item['snippet']
             
-            # 데이터 구조 생성
             content_doc = {
                 "external_id": video_id,
                 "platform": "YOUTUBE",
@@ -87,13 +91,13 @@ def scrape_youtube(keyword='부천FC'):
                 )
             )
 
-        # 4. 벌크 실행
+        # 3. 벌크 실행
         if operations:
             result = collection.bulk_write(operations)
-            print(f"✅ [v2.2] Final Success! Total {len(collected_items)} videos processed.")
+            print(f"✅ [v2.3] Final Success! Total {len(all_collected_items)} records processed.")
             print(f"📊 Stats - Upserted: {result.upserted_count}, Matched: {result.matched_count}")
         else:
-            print("⚠️ No videos found in the last week.")
+            print("⚠️ No videos found for any keywords in the last week.")
 
     except Exception as e:
         print(f"❌ Critical Error: {str(e)}")
