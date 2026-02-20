@@ -1,4 +1,4 @@
-import { defaultCacheOnNavigation, Serwist } from "@serwist/sw";
+import { Serwist } from "@serwist/sw";
 
 declare const self: ServiceWorkerGlobalScope;
 
@@ -7,7 +7,7 @@ const serwist = new Serwist({
   skipWaiting: true,
   clientsClaim: true,
   navigationPreload: true,
-  runtimeCaching: defaultCacheOnNavigation,
+  runtimeCaching: [], // 기본 캐싱 설정으로 단순화하여 빌드 오류 방지
 });
 
 serwist.addEventListeners();
