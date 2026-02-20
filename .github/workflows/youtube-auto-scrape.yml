@@ -2,7 +2,7 @@ name: YouTube Auto Scraper (30m)
 
 on:
   schedule:
-    - cron: '*/30 * * * *' # 30분마다
+    - cron: '19,49 * * * *' # 매시 19분, 49분에 실행 (지연 방지 최적화)
   workflow_dispatch:
 
 jobs:

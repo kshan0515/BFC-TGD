@@ -2,7 +2,7 @@ name: Instagram Auto Scraper (2h)
 
 on:
   schedule:
-    - cron: '0 */2 * * *' # 2시간마다 (02:00, 04:00 ...)
+    - cron: '19 */2 * * *' # 2시간마다 19분에 실행 (예: 02:19, 04:19 ...)
   workflow_dispatch:
 
 jobs:
