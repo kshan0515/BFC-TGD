@@ -9,6 +9,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import FeedGrid from '@/components/feed/FeedGrid';
 import { getFeed, FeedItem } from '@/lib/api';
+import { ThemeToggle } from '@/components/theme-toggle';
 
 const PLATFORMS = [
   { id: undefined, label: '전체', icon: '⚽' },
@@ -52,7 +53,7 @@ export default function Home() {
   // 초기 로드 및 플랫폼 변경 감지
   useEffect(() => {
     loadData(true, selectedPlatform);
-  }, [selectedPlatform]);
+  }, [selectedPlatform, loadData]);
 
   const handleLoadMore = () => {
     loadData(false, selectedPlatform);
@@ -74,7 +75,8 @@ export default function Home() {
               <span className="text-red-600">단</span>
             </h1>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
+             <ThemeToggle />
              {/* 플랫폼 필터 탭 */}
              <div className="flex bg-zinc-100 dark:bg-zinc-900/50 p-1 rounded-xl border border-transparent dark:border-zinc-800">
               {PLATFORMS.map((p) => (

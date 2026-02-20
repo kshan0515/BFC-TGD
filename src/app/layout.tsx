@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
+import { ThemeProvider } from '@/components/theme-provider';
 
 export const metadata: Metadata = {
   title: '부천FC 1995 통합검색단 (BFC-TGD)',
@@ -18,7 +19,7 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
-  viewportFit: 'cover', // 노치 및 폴더블 화면 대응
+  viewportFit: 'cover',
 };
 
 export default function RootLayout({
@@ -27,9 +28,16 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="ko">
-      <body className="antialiased bg-zinc-50 dark:bg-zinc-950">
-        {children}
+    <html lang="ko" suppressHydrationWarning>
+      <body className="antialiased bg-white dark:bg-black transition-colors duration-300">
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange
+        >
+          {children}
+        </ThemeProvider>
       </body>
     </html>
   );
