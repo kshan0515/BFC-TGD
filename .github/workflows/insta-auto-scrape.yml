@@ -1,8 +1,8 @@
-name: YouTube Auto Scraper (30m)
+name: Instagram Auto Scraper (2h)
 
 on:
   schedule:
-    - cron: '*/30 * * * *' # 30분마다
+    - cron: '0 */2 * * *' # 2시간마다 (02:00, 04:00 ...)
   workflow_dispatch:
 
 jobs:
@@ -23,8 +23,7 @@ jobs:
         run: |
           pip install -r scrapers/requirements.txt
 
-      - name: Run YouTube Scraper
+      - name: Run Instagram Scraper
         env:
-          YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
           MONGO_URI: ${{ secrets.MONGO_URI }}
-        run: python scrapers/youtube_scraper.py
+        run: python scrapers/insta_scraper.py
