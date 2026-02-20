@@ -25,8 +25,8 @@ jobs:
         env:
           MONGO_URI: ${{ secrets.MONGO_URI }}
           INSTA_USER: ${{ secrets.INSTA_USER }}
-          INSTA_PASS: ${{ secrets.INSTA_PASS }}
-          FORCE_BACKUP: "true" # 강제 백업 모드 플래그 (스크립트에서 처리 가능)
+          INSTA_SESSION_64: ${{ secrets.INSTA_SESSION_64 }} # 누락된 세션 정보 추가
+          FORCE_BACKUP: "true"
         run: |
           # 메인 로직 대신 백업 함수만 직접 테스트하도록 실행
           python -c "import os; from scrapers.insta_scraper import scrape_via_instaloader, save_to_mongo; 
