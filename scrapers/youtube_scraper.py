@@ -13,21 +13,43 @@ def scrape_youtube(keyword='부천FC'):
         print("❌ Error: YOUTUBE_API_KEY or MONGO_URI environment variable is not set.")
         return
 
+    # 1주일 전 시간 계산 (RFC 3339 형식)
+    time_threshold = (datetime.datetime.utcnow() - datetime.timedelta(days=7)).isoformat() + "Z"
     print(f"🚀 Starting YouTube scrape for keyword: {keyword}")
+    print(f"📅 Fetching videos published after: {time_threshold} (Last 7 days)")
 
     try:
         # 1. 유튜브 API 클라이언트 초기화
         youtube = build('youtube', 'v3', developerKey=YOUTUBE_API_KEY)
         
-        # 2. 영상 검색 (최신순 10개)
-        request = youtube.search().list(
-            part="snippet",
-            q=keyword,
-            maxResults=10,
-            type="video",
-            order="date"
-        )
-        response = request.execute()
+        # 2. 영상 검색 (최대 200개 수집을 위한 페이지네이션)
+        collected_items = []
+        next_page_token = None
+        max_total_results = 200
+        
+        while len(collected_items) < max_total_results:
+            request = youtube.search().list(
+                part="snippet",
+                q=keyword,
+                maxResults=min(50, max_total_results - len(collected_items)), # API 제한인 50개씩 요청
+                type="video",
+                order="date",
+                publishedAfter=time_threshold,
+                pageToken=next_page_token
+            )
+            response = request.execute()
+            
+            items = response.get('items', [])
+            if not items:
+                break
+                
+            collected_items.extend(items)
+            next_page_token = response.get('nextPageToken')
+            
+            print(f"📦 Collected {len(collected_items)} / {max_total_results} items...")
+            
+            if not next_page_token:
+                break
 
         # 3. MongoDB Atlas 연결
         client = MongoClient(MONGO_URI)
@@ -35,11 +57,11 @@ def scrape_youtube(keyword='부천FC'):
         collection = db['contents']
 
         operations = []
-        for item in response.get('items', []):
+        for item in collected_items:
             video_id = item['id']['videoId']
             snippet = item['snippet']
             
-            # 프론트엔드와 호환되는 데이터 구조 (snake_case)
+            # 데이터 구조 생성
             content_doc = {
                 "external_id": video_id,
                 "platform": "YOUTUBE",
@@ -57,7 +79,6 @@ def scrape_youtube(keyword='부천FC'):
                 "updated_at": datetime.datetime.utcnow()
             }
 
-            # external_id 기준으로 중복 체크 및 업데이트 (UPSERT)
             operations.append(
                 UpdateOne(
                     {"external_id": video_id},
@@ -66,13 +87,13 @@ def scrape_youtube(keyword='부천FC'):
                 )
             )
 
-        # 4. 일괄 실행 (Bulk Write)
+        # 4. 벌크 실행
         if operations:
             result = collection.bulk_write(operations)
-            print(f"✅ Success! Scraped {len(operations)} videos.")
+            print(f"✅ Final Success! Total {len(collected_items)} videos processed.")
             print(f"📊 Stats - Upserted: {result.upserted_count}, Matched: {result.matched_count}")
         else:
-            print("⚠️ No videos found.")
+            print("⚠️ No videos found in the last week.")
 
     except Exception as e:
         print(f"❌ Critical Error: {str(e)}")
