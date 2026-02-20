@@ -1,3 +1,8 @@
+/**
+ * BFC-TGD (Bucheon FC 1995 Integrated Search Agent)
+ * Copyright (c) 2026 kshan0515. Licensed under the MIT License.
+ * Created with ❤️ for Bucheon FC 1995 Fans.
+ */
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
@@ -18,7 +23,7 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(false);
   const [hasMore, setHasMore] = useState(true);
 
-  // 데이터 로드 로직 (초기화 포함)
+  // 데이터 로드 로직
   const loadData = useCallback(async (isInitial: boolean, platform?: string) => {
     if (isLoading || (!isInitial && !hasMore)) return;
     

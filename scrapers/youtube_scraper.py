@@ -1,3 +1,8 @@
+"""
+BFC-TGD (Bucheon FC 1995 Integrated Search Agent)
+Copyright (c) 2026 kshan0515. Licensed under the MIT License.
+Created with ❤️ for Bucheon FC 1995 Fans.
+"""
 import os
 import datetime
 from googleapiclient.discovery import build
@@ -66,6 +71,10 @@ def scrape_youtube():
             video_id = item['id']['videoId']
             snippet = item['snippet']
             
+            # 날짜 파싱: ISO 문자열을 datetime 객체로 변환
+            pub_date_str = snippet['publishedAt']
+            pub_date = datetime.datetime.fromisoformat(pub_date_str.replace("Z", "+00:00"))
+
             content_doc = {
                 "external_id": video_id,
                 "platform": "YOUTUBE",
@@ -74,7 +83,7 @@ def scrape_youtube():
                 "caption": snippet['description'],
                 "media_uri": snippet['thumbnails']['high']['url'],
                 "origin_url": f"https://www.youtube.com/watch?v={video_id}",
-                "published_at": snippet['publishedAt'],
+                "published_at": pub_date, # datetime 객체로 저장
                 "username": snippet['channelTitle'],
                 "metadata": {
                     "channel_id": snippet['channelId'],

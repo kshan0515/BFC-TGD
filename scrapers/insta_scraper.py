@@ -1,3 +1,8 @@
+"""
+BFC-TGD (Bucheon FC 1995 Integrated Search Agent)
+Copyright (c) 2026 kshan0515. Licensed under the MIT License.
+Created with ❤️ for Bucheon FC 1995 Fans.
+"""
 import os
 import datetime
 from apify_client import ApifyClient
@@ -12,25 +17,50 @@ INSTA_PASS = os.getenv('INSTA_PASS') # 옵션: 로그인용 비밀번호
 DB_NAME = 'bfc-tgd'
 
 def scrape_via_apify(tags):
-    """Apify를 사용하여 안전하게 인스타그램 수집 (권장)"""
+    """Apify를 사용하여 안전하게 인스타그램 수집 (비용 극대화 최적화)"""
     if not APIFY_TOKEN:
         print("⚠️ Skip Apify: APIFY_TOKEN is not set.")
         return []
 
-    print(f"🚀 [Apify] Starting scrape for tags: {tags}")
-    client = ApifyClient(APIFY_TOKEN)
+    # --- 비용 최적화 Pre-check (타이트한 110분 적용) ---
+    client = MongoClient(MONGO_URI)
+    db = client[DB_NAME]
+    last_item = db['contents'].find_one(
+        {"platform": "INSTA"},
+        sort=[("updated_at", -1)]
+    )
     
-    # Apify 인스타그램 해시태그 스크래퍼 실행
+    if last_item and "updated_at" in last_item:
+        time_diff = datetime.datetime.utcnow() - last_item["updated_at"]
+        if time_diff < datetime.timedelta(minutes=110):
+            print(f"☕ Scraped recently ({time_diff.seconds // 60}m ago). Skipping to save Apify credits.")
+            return []
+    # -----------------------------------------------
+
+    print(f"🚀 [Apify] Starting ultra-optimized scrape for tags: {tags}")
+    apify_client = ApifyClient(APIFY_TOKEN)
+    
     run_input = {
         "hashtags": tags,
-        "resultsLimit": 50, # 2시간 주기 내의 데이터를 충분히 확보하기 위해 50개로 상향
+        "resultsLimit": 10, # 2시간 주기 내의 신규물만 타겟팅 (최소 비용)
     }
     
-    run = client.actor("apify/instagram-hashtag-scraper").call(run_input=run_input)
+    run = apify_client.actor("apify/instagram-hashtag-scraper").call(run_input=run_input)
+    
+    # 최근 2시간 이내의 게시물만 수집하도록 시간 기준 설정
+    time_threshold = datetime.datetime.utcnow() - datetime.timedelta(hours=2)
     
     collected_data = []
-    for item in client.dataset(run["defaultDatasetId"]).iterate_items():
-        # 데이터 정규화
+    for item in apify_client.dataset(run["defaultDatasetId"]).iterate_items():
+        # 날짜 체크: Apify가 가져온 데이터 중에서도 너무 오래된 것은 제외
+        # 타임스탬프 형식 처리 (Z -> +00:00)
+        ts_str = item.get("timestamp")
+        if not ts_str: continue
+        
+        pub_date = datetime.datetime.fromisoformat(ts_str.replace("Z", "+00:00"))
+        if pub_date.replace(tzinfo=None) < time_threshold:
+            continue
+
         collected_data.append({
             "external_id": item.get("shortCode"),
             "platform": "INSTA",
@@ -39,7 +69,7 @@ def scrape_via_apify(tags):
             "caption": item.get("caption"),
             "media_uri": item.get("displayUrl"),
             "origin_url": item.get("url"),
-            "published_at": item.get("timestamp"),
+            "published_at": pub_date, # 문자열 대신 datetime 객체 저장
             "username": item.get("ownerUsername"),
             "metadata": {
                 "shortcode": item.get("shortCode"),

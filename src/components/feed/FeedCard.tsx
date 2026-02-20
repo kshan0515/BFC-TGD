@@ -2,6 +2,7 @@
 
 import { motion } from 'framer-motion';
 import Image from 'next/image';
+import { formatRelativeTime } from '@/lib/utils';
 
 interface FeedCardProps {
   item: any;
@@ -47,7 +48,7 @@ export default function FeedCard({ item, onClick }: FeedCardProps) {
             {item.username}
           </h3>
           <span className="text-[9px] text-zinc-400 dark:text-zinc-500 font-medium">
-            {new Date(item.published_at).toLocaleDateString()}
+            {formatRelativeTime(item.published_at)}
           </span>
         </div>
         <p className="text-sm font-bold line-clamp-2 text-zinc-800 dark:text-zinc-50 leading-snug group-hover:text-red-600 dark:group-hover:text-red-400 transition-colors">
