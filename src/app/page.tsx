@@ -5,7 +5,7 @@
  */
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { motion } from 'framer-motion';
 import FeedGrid from '@/components/feed/FeedGrid';
 import { getFeed, FeedItem } from '@/lib/api';
@@ -23,12 +23,17 @@ export default function Home() {
   const [page, setPage] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
   const [hasMore, setHasMore] = useState(true);
+  
+  // 중복 호출 방지를 위한 Ref
+  const isFetching = useRef(false);
 
   // 데이터 로드 로직
   const loadData = useCallback(async (isInitial: boolean, platform?: string) => {
-    if (isLoading || (!isInitial && !hasMore)) return;
+    if (isFetching.current || (!isInitial && !hasMore)) return;
     
+    isFetching.current = true;
     setIsLoading(true);
+    
     const targetPage = isInitial ? 1 : page;
 
     try {
@@ -47,13 +52,15 @@ export default function Home() {
       console.error('Error loading feed:', error);
     } finally {
       setIsLoading(false);
+      isFetching.current = false;
     }
-  }, [page, isLoading, hasMore]);
+  }, [page, hasMore]); // 의존성 최소화
 
-  // 초기 로드 및 플랫폼 변경 감지
+  // 플랫폼 변경 시 초기화
   useEffect(() => {
+    // 플랫폼이 바뀔 때만 초기 데이터 로드 (의존성 루프 차단)
     loadData(true, selectedPlatform);
-  }, [selectedPlatform, loadData]);
+  }, [selectedPlatform]);
 
   const handleLoadMore = () => {
     loadData(false, selectedPlatform);
