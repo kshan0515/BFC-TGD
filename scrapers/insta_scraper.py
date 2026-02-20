@@ -51,7 +51,7 @@ def scrape_via_apify(tags):
     
     run_input = {
         "hashtags": tags,
-        "resultsLimit": 30,
+        "resultsLimit": 20, # 비용 절감을 위해 20개로 하향 조정
     }
     
     try:
@@ -164,7 +164,7 @@ def save_to_mongo(data):
         print(f"📊 Stats - Upserted: {result.upserted_count}, Matched: {result.matched_count}")
 
 def main():
-    tags = ['부천FC', '부천FC1995']
+    tags = ['부천FC'] # 비용 절감을 위해 가장 대중적인 해시태그 하나만 사용
     data = []
     
     # 1. 우선 안정적인 Apify로 시도
