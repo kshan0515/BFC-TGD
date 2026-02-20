@@ -18,6 +18,7 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
+  viewportFit: 'cover', // 노치 및 폴더블 화면 대응
 };
 
 export default function RootLayout({

@@ -51,11 +51,11 @@ export default function FeedGrid({ items, isLoading, onLoadMore }: FeedGridProps
   }, [inView, isLoading, onLoadMore]);
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="container mx-auto px-4 py-8 max-w-full overflow-x-hidden">
       {/* Masonry Layout: Flexbox 기반 열 정렬 */}
-      <div className="flex gap-4 items-start">
+      <div className="flex gap-3 md:gap-4 items-start w-full">
         {columns.map((columnItems, colIndex) => (
-          <div key={colIndex} className="flex-1 flex flex-col gap-4">
+          <div key={colIndex} className="flex-1 min-w-0 flex flex-col gap-3 md:gap-4">
             <AnimatePresence mode="popLayout">
               {columnItems.map((item, index) => (
                 <motion.div
