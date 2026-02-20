@@ -90,7 +90,7 @@ def scrape_youtube(keyword='부천FC'):
         # 4. 벌크 실행
         if operations:
             result = collection.bulk_write(operations)
-            print(f"✅ Final Success! Total {len(collected_items)} videos processed.")
+            print(f"✅ [v2.0] Final Success! Total {len(collected_items)} videos processed.")
             print(f"📊 Stats - Upserted: {result.upserted_count}, Matched: {result.matched_count}")
         else:
             print("⚠️ No videos found in the last week.")
