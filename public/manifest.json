@@ -1,0 +1,14 @@
+{
+  "name": "부천FC 1995 통합검색단 (BFC-TGD)",
+  "short_name": "부천FC 통검단",
+  "description": "부천FC 1995 소셜 미디어 통합검색단 (부천FC 통검단, BFC-TGD)",
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ],
+  "theme_color": "#DA291C",
+  "background_color": "#000000",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait"
+}
