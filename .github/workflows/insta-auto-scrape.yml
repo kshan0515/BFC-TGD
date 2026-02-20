@@ -28,5 +28,5 @@ jobs:
           MONGO_URI: ${{ secrets.MONGO_URI }}
           APIFY_TOKEN: ${{ secrets.APIFY_TOKEN }}
           INSTA_USER: ${{ secrets.INSTA_USER }}
-          INSTA_PASS: ${{ secrets.INSTA_PASS }}
+          INSTA_SESSION_64: ${{ secrets.INSTA_SESSION_64 }} # 신규 세션 텍스트 추가
         run: python scrapers/insta_scraper.py
