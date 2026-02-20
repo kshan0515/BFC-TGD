@@ -1,13 +1,21 @@
-import { Serwist } from "@serwist/sw";
+import { defaultCache } from "@serwist/next/worker";
+import type { PrecacheEntry, SerwistGlobalConfig } from "serwist";
+import { Serwist } from "serwist";
 
-declare const self: ServiceWorkerGlobalScope;
+declare global {
+  interface WorkerGlobalScope extends SerwistGlobalConfig {
+    __SW_MANIFEST: (PrecacheEntry | string)[] | undefined;
+  }
+}
+
+declare const self: WorkerGlobalScope;
 
 const serwist = new Serwist({
   precacheEntries: self.__SW_MANIFEST,
   skipWaiting: true,
   clientsClaim: true,
   navigationPreload: true,
-  runtimeCaching: [], // 기본 캐싱 설정으로 단순화하여 빌드 오류 방지
+  runtimeCaching: defaultCache,
 });
 
 serwist.addEventListeners();
