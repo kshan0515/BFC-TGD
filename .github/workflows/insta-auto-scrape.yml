@@ -26,4 +26,7 @@ jobs:
       - name: Run Instagram Scraper
         env:
           MONGO_URI: ${{ secrets.MONGO_URI }}
+          APIFY_TOKEN: ${{ secrets.APIFY_TOKEN }}
+          INSTA_USER: ${{ secrets.INSTA_USER }}
+          INSTA_PASS: ${{ secrets.INSTA_PASS }}
         run: python scrapers/insta_scraper.py

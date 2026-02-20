@@ -1,91 +1,130 @@
 import os
 import datetime
+from apify_client import ApifyClient
 from instaloader import Instaloader, Hashtag
 from pymongo import MongoClient, UpdateOne
 
 # 환경 변수 로드
 MONGO_URI = os.getenv('MONGO_URI')
+APIFY_TOKEN = os.getenv('APIFY_TOKEN')
+INSTA_USER = os.getenv('INSTA_USER') # 옵션: 로그인용 아이디
+INSTA_PASS = os.getenv('INSTA_PASS') # 옵션: 로그인용 비밀번호
 DB_NAME = 'bfc-tgd'
 
-def scrape_instagram(tag_name='부천FC'):
-    if not MONGO_URI:
-        print("❌ Error: MONGO_URI environment variable is not set.")
+def scrape_via_apify(tags):
+    """Apify를 사용하여 안전하게 인스타그램 수집 (권장)"""
+    if not APIFY_TOKEN:
+        print("⚠️ Skip Apify: APIFY_TOKEN is not set.")
+        return []
+
+    print(f"🚀 [Apify] Starting scrape for tags: {tags}")
+    client = ApifyClient(APIFY_TOKEN)
+    
+    # Apify 인스타그램 해시태그 스크래퍼 실행
+    run_input = {
+        "hashtags": tags,
+        "resultsLimit": 10, # 2시간 주기이므로 소량만 수집
+    }
+    
+    run = client.actor("apify/instagram-hashtag-scraper").call(run_input=run_input)
+    
+    collected_data = []
+    for item in client.dataset(run["defaultDatasetId"]).iterate_items():
+        # 데이터 정규화
+        collected_data.append({
+            "external_id": item.get("shortCode"),
+            "platform": "INSTA",
+            "type": "IMAGE" if item.get("type") != "Video" else "VIDEO",
+            "title": None,
+            "caption": item.get("caption"),
+            "media_uri": item.get("displayUrl"),
+            "origin_url": item.get("url"),
+            "published_at": item.get("timestamp"),
+            "username": item.get("ownerUsername"),
+            "metadata": {
+                "shortcode": item.get("shortCode"),
+                "likes": item.get("likesCount"),
+                "comments": item.get("commentsCount")
+            }
+        })
+    return collected_data
+
+def scrape_via_instaloader(tag_name):
+    """Instaloader를 사용한 직접 수집 (로그인 옵션 포함)"""
+    print(f"🚀 [Instaloader] Starting scrape for #{tag_name}")
+    L = Instaloader()
+    
+    if INSTA_USER and INSTA_PASS:
+        try:
+            L.login(INSTA_USER, INSTA_PASS)
+            print(f"✅ Logged in as {INSTA_USER}")
+        except Exception as e:
+            print(f"⚠️ Login failed: {e}. Attempting as anonymous...")
+
+    two_hours_ago = datetime.datetime.utcnow() - datetime.timedelta(hours=2)
+    hashtag = Hashtag.from_name(L.context, tag_name)
+    
+    collected_data = []
+    for post in hashtag.get_posts():
+        if post.date_utc < two_hours_ago:
+            break
+        
+        collected_data.append({
+            "external_id": post.shortcode,
+            "platform": "INSTA",
+            "type": "IMAGE" if not post.is_video else "VIDEO",
+            "title": None,
+            "caption": post.caption,
+            "media_uri": post.url,
+            "origin_url": f"https://www.instagram.com/p/{post.shortcode}/",
+            "published_at": post.date_utc,
+            "username": post.owner_username,
+            "metadata": {
+                "shortcode": post.shortcode,
+                "likes": post.likes,
+                "comments": post.comments
+            }
+        })
+    return collected_data
+
+def save_to_mongo(data):
+    if not data:
+        print("⚠️ No data to save.")
         return
 
-    L = Instaloader()
-    # 차단 방지를 위한 User-Agent 설정
-    L.context.user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+    client = MongoClient(MONGO_URI)
+    db = client[DB_NAME]
+    collection = db['contents']
 
-    # 수집 기준 시간 계산 (최근 2시간 이내)
-    now = datetime.datetime.utcnow()
-    time_threshold = now - datetime.timedelta(hours=2)
-    
-    print(f"📸 [v1.0] Starting Instagram scrape for #{tag_name}")
-    print(f"📅 Fetching posts published after: {time_threshold} UTC (Last 2 hours)")
-
-    try:
-        # 1. 해시태그 객체 로드
-        hashtag = Hashtag.from_name(L.context, tag_name)
+    operations = []
+    for item in data:
+        if not item['external_id']: continue
         
-        # 2. MongoDB 연결
-        client = MongoClient(MONGO_URI)
-        db = client[DB_NAME]
-        collection = db['contents']
-
-        operations = []
-        collected_count = 0
-        
-        # 3. 포스트 순회 (해시태그 포스트는 기본적으로 최신순)
-        for post in hashtag.get_posts():
-            # 2시간보다 오래된 게시물이 나오면 즉시 중단
-            if post.date_utc < time_threshold:
-                print(f"🛑 Reached older posts (Date: {post.date_utc}). Stopping.")
-                break
-            
-            # 데이터 스키마 (프론트엔드 snake_case 호환)
-            content_doc = {
-                "external_id": post.shortcode,
-                "platform": "INSTA",
-                "type": "IMAGE" if not post.is_video else "VIDEO",
-                "title": None,
-                "caption": post.caption,
-                "media_uri": post.url,
-                "origin_url": f"https://www.instagram.com/p/{post.shortcode}/",
-                "published_at": post.date_utc,
-                "username": post.owner_username,
-                "metadata": {
-                    "shortcode": post.shortcode,
-                    "likes": post.likes,
-                    "comments": post.comments,
-                    "is_video": post.is_video
-                },
-                "updated_at": datetime.datetime.utcnow()
-            }
-
-            # shortcode 기준 UPSERT
-            operations.append(
-                UpdateOne(
-                    {"external_id": post.shortcode},
-                    {"$set": content_doc},
-                    upsert=True
-                )
+        item['updated_at'] = datetime.datetime.utcnow()
+        operations.append(
+            UpdateOne(
+                {"external_id": item['external_id']},
+                {"$set": item},
+                upsert=True
             )
-            collected_count += 1
-            print(f"✅ Found: {post.shortcode} by {post.owner_username}")
+        )
 
-        # 4. 벌크 실행
-        if operations:
-            result = collection.bulk_write(operations)
-            print(f"🎉 Final Success! Processed {collected_count} posts.")
-            print(f"📊 Stats - Upserted: {result.upserted_count}, Matched: {result.matched_count}")
-        else:
-            print("⚠️ No new posts found in the last 2 hours.")
-
-    except Exception as e:
-        print(f"❌ Critical Error: {str(e)}")
+    if operations:
+        result = collection.bulk_write(operations)
+        print(f"✅ Successfully synced {len(data)} items to MongoDB.")
+        print(f"📊 Stats - Upserted: {result.upserted_count}, Matched: {result.matched_count}")
 
 if __name__ == "__main__":
-    # 여러 해시태그 수집 (확장 가능)
     tags = ['부천FC', '부천FC1995']
-    for t in tags:
-        scrape_instagram(t)
+    
+    # 1. 우선 Apify로 시도
+    data = scrape_via_apify(tags)
+    
+    # 2. Apify 토큰이 없거나 결과가 없을 경우 (옵션) 직접 수집 시도
+    if not data and INSTA_USER:
+        print("🔄 Falling back to direct Instaloader scrape...")
+        for t in tags:
+            data.extend(scrape_via_instaloader(t))
+            
+    # 3. 저장
+    save_to_mongo(data)
