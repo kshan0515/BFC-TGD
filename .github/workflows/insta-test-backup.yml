@@ -1,0 +1,35 @@
+name: Instagram Backup Test (Manual)
+
+on:
+  workflow_dispatch: # 오직 수동 실행만 가능
+
+jobs:
+  test-backup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: |
+          pip install -r scrapers/requirements.txt
+
+      - name: Run Instaloader Backup Mode
+        env:
+          MONGO_URI: ${{ secrets.MONGO_URI }}
+          INSTA_USER: ${{ secrets.INSTA_USER }}
+          INSTA_PASS: ${{ secrets.INSTA_PASS }}
+          FORCE_BACKUP: "true" # 강제 백업 모드 플래그 (스크립트에서 처리 가능)
+        run: |
+          # 메인 로직 대신 백업 함수만 직접 테스트하도록 실행
+          python -c "import os; from scrapers.insta_scraper import scrape_via_instaloader, save_to_mongo; 
+          data = []; 
+          for t in ['부천FC']: data.extend(scrape_via_instaloader(t)); 
+          save_to_mongo(data)"

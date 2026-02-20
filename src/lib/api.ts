@@ -34,7 +34,7 @@ export async function getFeed(page = 1, limit = 20, platform?: string): Promise<
     const db = client.db('bfc-tgd');
     const collection = db.collection('contents');
 
-    // [마이그레이션] 정렬을 망치는 문자열 날짜를 Date 객체로 자동 변환 (1회성/점진적)
+    /* [마이그레이션 완료] 이미 데이터 타입 정규화가 완료되었으므로 성능을 위해 비활성화합니다.
     const stringDates = await collection.find({ published_at: { $type: "string" } }).limit(50).toArray();
     if (stringDates.length > 0) {
       console.log(`🧹 정렬 최적화 중: ${stringDates.length}개의 데이터 타입 변환...`);
@@ -45,6 +45,7 @@ export async function getFeed(page = 1, limit = 20, platform?: string): Promise<
         );
       }
     }
+    */
 
     // 쿼리 필터 설정
     const query: any = {};

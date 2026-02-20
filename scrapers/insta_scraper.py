@@ -42,7 +42,7 @@ def scrape_via_apify(tags):
     
     run_input = {
         "hashtags": tags,
-        "resultsLimit": 10, # 2시간 주기 내의 신규물만 타겟팅 (최소 비용)
+        "resultsLimit": 30, # 2시간 주기 내의 신규물 누락 방지를 위해 30개로 상향
     }
     
     run = apify_client.actor("apify/instagram-hashtag-scraper").call(run_input=run_input)
@@ -144,17 +144,34 @@ def save_to_mongo(data):
         print(f"✅ Successfully synced {len(data)} items to MongoDB.")
         print(f"📊 Stats - Upserted: {result.upserted_count}, Matched: {result.matched_count}")
 
-if __name__ == "__main__":
+def main():
     tags = ['부천FC', '부천FC1995']
+    data = []
     
-    # 1. 우선 Apify로 시도
-    data = scrape_via_apify(tags)
-    
-    # 2. Apify 토큰이 없거나 결과가 없을 경우 (옵션) 직접 수집 시도
-    if not data and INSTA_USER:
-        print("🔄 Falling back to direct Instaloader scrape...")
-        for t in tags:
-            data.extend(scrape_via_instaloader(t))
+    # 1. 우선 안정적인 Apify로 시도
+    try:
+        data = scrape_via_apify(tags)
+    except Exception as e:
+        print(f"📡 Apify failed (possibly out of credits): {e}")
+        data = []
+
+    # 2. Apify 결과가 없거나 실패했을 경우에만 내 계정(Instaloader)으로 백업 실행
+    if not data:
+        print("🔄 [Backup] Apify is unavailable. Switching to direct Instaloader scrape...")
+        if not (INSTA_USER and INSTA_PASS):
+            print("❌ Error: INSTA_USER or INSTA_PASS is not set for backup scrape.")
+        else:
+            for t in tags:
+                try:
+                    data.extend(scrape_via_instaloader(t))
+                except Exception as ex:
+                    print(f"❌ Backup scrape failed for #{t}: {ex}")
             
-    # 3. 저장
-    save_to_mongo(data)
+    # 3. 데이터 저장
+    if data:
+        save_to_mongo(data)
+    else:
+        print("⚠️ No data collected from any source.")
+
+if __name__ == "__main__":
+    main()
