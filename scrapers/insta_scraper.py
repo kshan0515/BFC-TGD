@@ -23,7 +23,7 @@ def scrape_via_apify(tags):
     # Apify 인스타그램 해시태그 스크래퍼 실행
     run_input = {
         "hashtags": tags,
-        "resultsLimit": 10, # 2시간 주기이므로 소량만 수집
+        "resultsLimit": 50, # 2시간 주기 내의 데이터를 충분히 확보하기 위해 50개로 상향
     }
     
     run = client.actor("apify/instagram-hashtag-scraper").call(run_input=run_input)
