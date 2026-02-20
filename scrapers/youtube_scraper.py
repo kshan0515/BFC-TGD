@@ -22,10 +22,10 @@ def scrape_youtube(keyword='부천FC'):
         # 1. 유튜브 API 클라이언트 초기화
         youtube = build('youtube', 'v3', developerKey=YOUTUBE_API_KEY)
         
-        # 2. 영상 검색 (최대 200개 수집을 위한 페이지네이션)
+        # 2. 영상 검색 (실시간성을 위해 최대 50개로 최적화)
         collected_items = []
         next_page_token = None
-        max_total_results = 200
+        max_total_results = 50
         
         while len(collected_items) < max_total_results:
             request = youtube.search().list(
@@ -90,7 +90,7 @@ def scrape_youtube(keyword='부천FC'):
         # 4. 벌크 실행
         if operations:
             result = collection.bulk_write(operations)
-            print(f"✅ [v2.1] Final Success! Total {len(collected_items)} videos processed.")
+            print(f"✅ [v2.2] Final Success! Total {len(collected_items)} videos processed.")
             print(f"📊 Stats - Upserted: {result.upserted_count}, Matched: {result.matched_count}")
         else:
             print("⚠️ No videos found in the last week.")

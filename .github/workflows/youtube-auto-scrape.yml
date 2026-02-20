@@ -2,7 +2,7 @@ name: YouTube Auto Scraper v2.1 (BFC-TGD)
 
 on:
   schedule:
-    - cron: '0 0 * * *' # 매일 자정(UTC) 자동 실행
+    - cron: '*/30 * * * *' # 30분마다 자동 실행
   workflow_dispatch: # 깃허브 웹 UI에서 수동 실행 버튼 활성화
 
 jobs:
