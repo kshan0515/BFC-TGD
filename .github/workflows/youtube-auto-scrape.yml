@@ -11,6 +11,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # 최신 커밋 상태 보장
 
       - name: Set up Python
         uses: actions/setup-python@v5
