@@ -5,80 +5,53 @@ Created with ❤️ for Bucheon FC 1995 Fans.
 """
 import os
 import datetime
-import base64
 from apify_client import ApifyClient
-from instaloader import Instaloader, Hashtag, Post
 from pymongo import MongoClient, UpdateOne
+from dotenv import load_dotenv
+
+# .env.local 또는 .env 파일 로드 (로컬 개발용)
+env_paths = [".env.local", ".env", "../.env.local", "../.env"]
+for path in env_paths:
+    if os.path.exists(path):
+        load_dotenv(path)
+        break
 
 # 환경 변수 로드
 MONGO_URI = os.getenv('MONGO_URI')
 APIFY_TOKEN = os.getenv('APIFY_TOKEN')
-INSTA_USER = os.getenv('INSTA_USER') 
-INSTA_SESSION_64 = os.getenv('INSTA_SESSION_64') 
 DB_NAME = 'bfc-tgd'
 
-# 인스타그램 차단 방지를 위한 고정 User-Agent
-USER_AGENT = "Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1"
-
-def load_session_from_env(L, username):
-    """GitHub Secrets에서 Base64 세션을 읽어 파일로 복구 및 로드"""
-    if not INSTA_SESSION_64:
-        print("⚠️ Skip Session Load: INSTA_SESSION_64 is not set.")
-        return False
-
-    try:
-        session_path = f"/tmp/session-{username}"
-        clean_session = INSTA_SESSION_64.strip().replace("\n", "").replace("\r", "")
-        with open(session_path, "wb") as f:
-            f.write(base64.b64decode(clean_session))
-        
-        L.load_session_from_file(username, filename=session_path)
-        
-        try:
-            profile = L.test_login()
-            if profile:
-                print(f"✅ [Diagnostic] Session is VALID. Logged in as: {profile}")
-                return True
-            else:
-                print(f"❌ [Diagnostic] Session is INVALID or EXPIRED.")
-                return False
-        except Exception as te:
-            print(f"❌ [Diagnostic] test_login() failed: {te}")
-            return False
-
-    except Exception as e:
-        print(f"❌ [Session] Critical failure during restoration: {e}")
-        return False
-
 def scrape_via_apify(tags):
-    """Apify를 사용하여 안전하게 인스타그램 수집"""
+    """Apify를 사용하여 안전하게 인스타그램 수집 (최종 최적화 버전)"""
     if not APIFY_TOKEN:
-        print("⚠️ Skip Apify: APIFY_TOKEN is not set.")
+        print("❌ Error: APIFY_TOKEN is not set.")
         return None
 
-    print(f"🚀 [Apify] Starting ultra-optimized scrape for tags: {tags}")
+    print(f"🚀 [Apify] Starting scrape for tags: {tags}")
     apify_client = ApifyClient(APIFY_TOKEN)
     
     run_input = {
         "hashtags": tags,
-        "resultsLimit": 20, # 비용 절감을 위해 20개로 최적화
+        "resultsLimit": 20, # 2시간 주기 내의 신규물 누락 방지 최적값
     }
     
     try:
         run = apify_client.actor("apify/instagram-hashtag-scraper").call(
             run_input=run_input,
-            timeout_secs=180, # 최대 3분만 대기
-            memory_mbytes=256 # 최소 메모리 설정
+            timeout_secs=180, # 3분 타임아웃 방어막
+            memory_mbytes=256 # 비용 절감 메모리 설정
         )
         
         collected_data = []
         for item in apify_client.dataset(run["defaultDatasetId"]).iterate_items():
+            # 대소문자 구분 없이 필드 추출 (방어 코드)
             short_code = item.get("shortCode") or item.get("shortcode")
             display_url = item.get("displayUrl") or item.get("display_url")
             timestamp = item.get("timestamp") or item.get("taken_at_timestamp")
             
             if not short_code or not timestamp: continue
             
+            # 타임스탬프 처리
             try:
                 if isinstance(timestamp, str):
                     pub_date = datetime.datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
@@ -110,48 +83,6 @@ def scrape_via_apify(tags):
         print(f"📡 Apify API Error: {e}")
         return None
 
-def scrape_via_instaloader(tag_name):
-    """Instaloader를 사용한 직접 수집 (최신순 50개 무조건 수집)"""
-    print(f"🚀 [Instaloader] Starting idiomatic scrape for #{tag_name}")
-    L = Instaloader(user_agent=USER_AGENT)
-    
-    if INSTA_USER:
-        load_session_from_env(L, INSTA_USER)
-
-    try:
-        hashtag = Hashtag.from_name(L.context, tag_name)
-        posts = hashtag.get_posts()
-        
-        collected_data = []
-        count = 0
-        for post in posts:
-            count += 1
-            if count > 50: break # 최대 50개까지 확인
-            
-            collected_data.append({
-                "external_id": post.shortcode,
-                "platform": "INSTA",
-                "type": "IMAGE" if not post.is_video else "VIDEO",
-                "title": None,
-                "caption": post.caption,
-                "media_uri": post.url,
-                "origin_url": f"https://www.instagram.com/p/{post.shortcode}/",
-                "published_at": post.date_utc,
-                "username": post.owner_username,
-                "metadata": {
-                    "shortcode": post.shortcode,
-                    "likes": post.likes,
-                    "comments": post.comments,
-                    "is_video": post.is_video
-                }
-            })
-            print(f"📦 Found: {post.shortcode}")
-            
-        return collected_data
-    except Exception as e:
-        print(f"❌ Instaloader Error for #{tag_name}: {e}")
-        return []
-
 def save_to_mongo(data):
     if not data:
         print("⚠️ No data to save.")
@@ -164,50 +95,25 @@ def save_to_mongo(data):
     operations = []
     for item in data:
         if not item['external_id']: continue
-        
         item['updated_at'] = datetime.datetime.utcnow()
-        operations.append(
-            UpdateOne(
-                {"external_id": item['external_id']},
-                {"$set": item},
-                upsert=True
-            )
-        )
+        operations.append(UpdateOne({"external_id": item['external_id']}, {"$set": item}, upsert=True))
 
     if operations:
         result = collection.bulk_write(operations)
-        print(f"✅ Successfully synced {len(data)} items to MongoDB.")
-        print(f"📊 Stats - Upserted: {result.upserted_count}, Matched: {result.matched_count}")
+        print(f"✅ Successfully synced {len(data)} items to MongoDB. (Upserted: {result.upserted_count})")
 
 def main():
     tags = ['부천FC']
-    data = None
     
-    # FORCE_BACKUP 환경 변수가 있으면 Apify를 건너뜀 (테스트용)
-    if os.getenv('FORCE_BACKUP') == 'true':
-        print("⚠️ FORCE_BACKUP mode enabled. Skipping Apify...")
-    else:
-        # 1. 우선 안정적인 Apify로 시도
-        try:
-            data = scrape_via_apify(tags)
-        except Exception as e:
-            print(f"📡 Apify API Exception: {e}")
-            data = None
+    # 오직 Apify로만 정정당당하게(?) 수집 시도
+    data = scrape_via_apify(tags)
 
-    # 2. Apify 실패 시 또는 강제 백업 모드 시 실행
-    if data is None:
-        print("🔄 [Backup] Switching to Instaloader session mode...")
-        backup_data = []
-        for t in tags:
-            backup_data.extend(scrape_via_instaloader(t))
-        data = backup_data
-            
     if data:
         save_to_mongo(data)
     elif data == []:
-        print("✅ Apify run successful, but returned 0 items (rare for hashtags).")
+        print("✅ Apify run successful, but returned 0 items.")
     else:
-        print("⚠️ No data collected and backup also failed.")
+        print("⚠️ Scraping failed. No data to save.")
 
 if __name__ == "__main__":
     main()
