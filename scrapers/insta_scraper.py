@@ -77,29 +77,43 @@ def scrape_via_apify(tags):
         
         collected_data = []
         for item in apify_client.dataset(run["defaultDatasetId"]).iterate_items():
-            ts_str = item.get("timestamp")
-            if not ts_str: continue
+            # 대소문자 구분 없이 필드 추출 (방어 코드)
+            short_code = item.get("shortCode") or item.get("shortcode")
+            display_url = item.get("displayUrl") or item.get("display_url")
+            timestamp = item.get("timestamp") or item.get("taken_at_timestamp")
             
-            pub_date = datetime.datetime.fromisoformat(ts_str.replace("Z", "+00:00"))
+            if not short_code or not timestamp: continue
+            
+            # 타임스탬프 처리
+            try:
+                if isinstance(timestamp, str):
+                    pub_date = datetime.datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
+                else:
+                    pub_date = datetime.datetime.fromtimestamp(timestamp)
+            except:
+                pub_date = datetime.datetime.utcnow()
+
             if pub_date.replace(tzinfo=None) < time_threshold:
                 continue
 
             collected_data.append({
-                "external_id": item.get("shortCode"),
+                "external_id": short_code,
                 "platform": "INSTA",
-                "type": "IMAGE" if item.get("type") != "Video" else "VIDEO",
+                "type": "IMAGE" if item.get("type", "").lower() != "video" else "VIDEO",
                 "title": None,
-                "caption": item.get("caption"),
-                "media_uri": item.get("displayUrl"),
-                "origin_url": item.get("url"),
+                "caption": item.get("caption", ""),
+                "media_uri": display_url,
+                "origin_url": item.get("url") or f"https://www.instagram.com/p/{short_code}/",
                 "published_at": pub_date, 
-                "username": item.get("ownerUsername"),
+                "username": item.get("ownerUsername") or item.get("owner_username", "instagram_user"),
                 "metadata": {
-                    "shortcode": item.get("shortCode"),
-                    "likes": item.get("likesCount"),
-                    "comments": item.get("commentsCount")
+                    "shortcode": short_code,
+                    "likes": item.get("likesCount") or item.get("likes_count", 0),
+                    "comments": item.get("commentsCount") or item.get("comments_count", 0)
                 }
             })
+        
+        print(f"📦 [Apify] Parsed {len(collected_data)} items successfully.")
         return collected_data
     except Exception as e:
         print(f"📡 Apify API Error: {e}")
