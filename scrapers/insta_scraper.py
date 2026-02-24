@@ -28,16 +28,28 @@ def load_session_from_env(L, username):
 
     try:
         session_path = f"/tmp/session-{username}"
-        # 줄바꿈 제거 후 디코딩 (오염 방지)
         clean_session = INSTA_SESSION_64.strip().replace("\n", "").replace("\r", "")
         with open(session_path, "wb") as f:
             f.write(base64.b64decode(clean_session))
         
+        # 세션 로드
         L.load_session_from_file(username, filename=session_path)
-        print(f"✅ [Session] Successfully restored session for {username}")
-        return True
+        
+        # [정밀 진단] 세션 유효성 즉시 검증
+        try:
+            profile = L.test_login()
+            if profile:
+                print(f"✅ [Diagnostic] Session is VALID. Logged in as: {profile}")
+                return True
+            else:
+                print(f"❌ [Diagnostic] Session is INVALID or EXPIRED.")
+                return False
+        except Exception as te:
+            print(f"❌ [Diagnostic] test_login() failed: {te}")
+            return False
+
     except Exception as e:
-        print(f"❌ [Session] Failed to load session: {e}")
+        print(f"❌ [Session] Critical failure during restoration: {e}")
         return False
 
 def scrape_via_apify(tags):
@@ -51,7 +63,7 @@ def scrape_via_apify(tags):
     
     run_input = {
         "hashtags": tags,
-        "resultsLimit": 20, # 비용 절감을 위해 20개로 하향 조정
+        "resultsLimit": 20, # 4시간 주기이므로 20개로 최적화
     }
     
     try:
