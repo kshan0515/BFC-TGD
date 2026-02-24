@@ -25,11 +25,6 @@ jobs:
         env:
           MONGO_URI: ${{ secrets.MONGO_URI }}
           INSTA_USER: ${{ secrets.INSTA_USER }}
-          INSTA_SESSION_64: ${{ secrets.INSTA_SESSION_64 }} # 누락된 세션 정보 추가
+          INSTA_SESSION_64: ${{ secrets.INSTA_SESSION_64 }}
           FORCE_BACKUP: "true"
-        run: |
-          # 메인 로직 대신 백업 함수만 직접 테스트하도록 실행
-          python -c "import os; from scrapers.insta_scraper import scrape_via_instaloader, save_to_mongo; 
-          data = []; 
-          for t in ['부천FC']: data.extend(scrape_via_instaloader(t)); 
-          save_to_mongo(data)"
+        run: python scrapers/insta_scraper.py

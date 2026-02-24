@@ -183,14 +183,20 @@ def main():
     tags = ['부천FC']
     data = None
     
-    try:
-        data = scrape_via_apify(tags)
-    except Exception as e:
-        print(f"📡 Apify API Exception: {e}")
-        data = None
+    # FORCE_BACKUP 환경 변수가 있으면 Apify를 건너뜀 (테스트용)
+    if os.getenv('FORCE_BACKUP') == 'true':
+        print("⚠️ FORCE_BACKUP mode enabled. Skipping Apify...")
+    else:
+        # 1. 우선 안정적인 Apify로 시도
+        try:
+            data = scrape_via_apify(tags)
+        except Exception as e:
+            print(f"📡 Apify API Exception: {e}")
+            data = None
 
+    # 2. Apify 실패 시 또는 강제 백업 모드 시 실행
     if data is None:
-        print("🔄 [Backup] Apify failed. Switching to Instaloader session mode...")
+        print("🔄 [Backup] Switching to Instaloader session mode...")
         backup_data = []
         for t in tags:
             backup_data.extend(scrape_via_instaloader(t))

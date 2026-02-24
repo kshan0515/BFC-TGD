@@ -19,10 +19,10 @@ def scrape_youtube():
         print("❌ Error: YOUTUBE_API_KEY or MONGO_URI environment variable is not set.")
         return
 
-    # 1시간 전 시간 계산 (30분 주기이므로 1시간이면 안전하게 중첩됨)
-    time_threshold = (datetime.datetime.utcnow() - datetime.timedelta(hours=1)).isoformat() + "Z"
+    # 2시간 전 시간 계산 (30분 주기이므로 2시간이면 안전하게 중첩됨)
+    time_threshold = (datetime.datetime.utcnow() - datetime.timedelta(hours=2)).isoformat() + "Z"
     print(f"🚀 Starting YouTube scrape for keywords: {', '.join(keywords)}")
-    print(f"📅 Fetching videos published after: {time_threshold} (Last 1 hour)")
+    print(f"📅 Fetching videos published after: {time_threshold} (Last 2 hours)")
 
     try:
         # 1. 유튜브 API 클라이언트 초기화
