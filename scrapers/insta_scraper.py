@@ -63,7 +63,7 @@ def scrape_via_apify(tags):
     
     run_input = {
         "hashtags": tags,
-        "resultsLimit": 20, # 4시간 주기이므로 20개로 최적화
+        "resultsLimit": 20, # 2시간 주기 내의 신규물을 충분히 확보하도록 20개 설정
     }
     
     try:
