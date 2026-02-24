@@ -67,7 +67,12 @@ def scrape_via_apify(tags):
     }
     
     try:
-        run = apify_client.actor("apify/instagram-hashtag-scraper").call(run_input=run_input)
+        # 비용 및 시간 방어를 위해 timeout과 memoryMbytes 추가
+        run = apify_client.actor("apify/instagram-hashtag-scraper").call(
+            run_input=run_input,
+            timeout_secs=180, # 최대 3분만 대기 (20분씩 돌아가는 현상 방지)
+            memory_mbytes=256 # 최소 메모리 설정으로 비용 절감
+        )
         time_threshold = datetime.datetime.utcnow() - datetime.timedelta(hours=2)
         
         collected_data = []
