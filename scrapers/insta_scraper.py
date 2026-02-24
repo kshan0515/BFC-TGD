@@ -32,10 +32,8 @@ def load_session_from_env(L, username):
         with open(session_path, "wb") as f:
             f.write(base64.b64decode(clean_session))
         
-        # 세션 로드
         L.load_session_from_file(username, filename=session_path)
         
-        # [정밀 진단] 세션 유효성 즉시 검증
         try:
             profile = L.test_login()
             if profile:
@@ -56,35 +54,31 @@ def scrape_via_apify(tags):
     """Apify를 사용하여 안전하게 인스타그램 수집"""
     if not APIFY_TOKEN:
         print("⚠️ Skip Apify: APIFY_TOKEN is not set.")
-        return []
+        return None
 
     print(f"🚀 [Apify] Starting ultra-optimized scrape for tags: {tags}")
     apify_client = ApifyClient(APIFY_TOKEN)
     
     run_input = {
         "hashtags": tags,
-        "resultsLimit": 20, # 2시간 주기 내의 신규물을 충분히 확보하도록 20개 설정
+        "resultsLimit": 20, # 비용 절감을 위해 20개로 최적화
     }
     
     try:
-        # 비용 및 시간 방어를 위해 timeout과 memoryMbytes 추가
         run = apify_client.actor("apify/instagram-hashtag-scraper").call(
             run_input=run_input,
-            timeout_secs=180, # 최대 3분만 대기 (20분씩 돌아가는 현상 방지)
-            memory_mbytes=256 # 최소 메모리 설정으로 비용 절감
+            timeout_secs=180, # 최대 3분만 대기
+            memory_mbytes=256 # 최소 메모리 설정
         )
-        time_threshold = datetime.datetime.utcnow() - datetime.timedelta(hours=2)
         
         collected_data = []
         for item in apify_client.dataset(run["defaultDatasetId"]).iterate_items():
-            # 대소문자 구분 없이 필드 추출 (방어 코드)
             short_code = item.get("shortCode") or item.get("shortcode")
             display_url = item.get("displayUrl") or item.get("display_url")
             timestamp = item.get("timestamp") or item.get("taken_at_timestamp")
             
             if not short_code or not timestamp: continue
             
-            # 타임스탬프 처리
             try:
                 if isinstance(timestamp, str):
                     pub_date = datetime.datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
@@ -92,9 +86,6 @@ def scrape_via_apify(tags):
                     pub_date = datetime.datetime.fromtimestamp(timestamp)
             except:
                 pub_date = datetime.datetime.utcnow()
-
-            if pub_date.replace(tzinfo=None) < time_threshold:
-                continue
 
             collected_data.append({
                 "external_id": short_code,
@@ -117,50 +108,44 @@ def scrape_via_apify(tags):
         return collected_data
     except Exception as e:
         print(f"📡 Apify API Error: {e}")
-        return []
+        return None
 
 def scrape_via_instaloader(tag_name):
-    """Instaloader를 사용한 직접 수집 (개선된 루프 적용)"""
+    """Instaloader를 사용한 직접 수집 (최신순 50개 무조건 수집)"""
     print(f"🚀 [Instaloader] Starting idiomatic scrape for #{tag_name}")
-    # User-Agent 주입으로 봇 탐지 완화
     L = Instaloader(user_agent=USER_AGENT)
     
     if INSTA_USER:
         load_session_from_env(L, INSTA_USER)
 
-    since = datetime.datetime.utcnow() - datetime.timedelta(hours=2)
-    
     try:
         hashtag = Hashtag.from_name(L.context, tag_name)
         posts = hashtag.get_posts()
         
         collected_data = []
-        # takewhile 대신 상위 50개를 훑으며 시간 필터링 (비연속성 대응)
         count = 0
         for post in posts:
             count += 1
-            if count > 50: break # 최대 50개까지만 확인
+            if count > 50: break # 최대 50개까지 확인
             
-            # 2시간 이내 게시물만 추가
-            if post.date_utc > since:
-                collected_data.append({
-                    "external_id": post.shortcode,
-                    "platform": "INSTA",
-                    "type": "IMAGE" if not post.is_video else "VIDEO",
-                    "title": None,
-                    "caption": post.caption,
-                    "media_uri": post.url,
-                    "origin_url": f"https://www.instagram.com/p/{post.shortcode}/",
-                    "published_at": post.date_utc,
-                    "username": post.owner_username,
-                    "metadata": {
-                        "shortcode": post.shortcode,
-                        "likes": post.likes,
-                        "comments": post.comments,
-                        "is_video": post.is_video
-                    }
-                })
-                print(f"📦 Found: {post.shortcode} ({post.date_utc})")
+            collected_data.append({
+                "external_id": post.shortcode,
+                "platform": "INSTA",
+                "type": "IMAGE" if not post.is_video else "VIDEO",
+                "title": None,
+                "caption": post.caption,
+                "media_uri": post.url,
+                "origin_url": f"https://www.instagram.com/p/{post.shortcode}/",
+                "published_at": post.date_utc,
+                "username": post.owner_username,
+                "metadata": {
+                    "shortcode": post.shortcode,
+                    "likes": post.likes,
+                    "comments": post.comments,
+                    "is_video": post.is_video
+                }
+            })
+            print(f"📦 Found: {post.shortcode}")
             
         return collected_data
     except Exception as e:
@@ -195,23 +180,28 @@ def save_to_mongo(data):
         print(f"📊 Stats - Upserted: {result.upserted_count}, Matched: {result.matched_count}")
 
 def main():
-    tags = ['부천FC'] # 비용 절감을 위해 가장 대중적인 해시태그 하나만 사용
-    data = []
+    tags = ['부천FC']
+    data = None
     
-    # 1. 우선 안정적인 Apify로 시도
-    data = scrape_via_apify(tags)
+    try:
+        data = scrape_via_apify(tags)
+    except Exception as e:
+        print(f"📡 Apify API Exception: {e}")
+        data = None
 
-    # 2. Apify 실패 시에만 내 계정(Instaloader Session)으로 백업 실행
-    if not data:
-        print("🔄 [Backup] Apify is unavailable. Switching to Instaloader session mode...")
+    if data is None:
+        print("🔄 [Backup] Apify failed. Switching to Instaloader session mode...")
+        backup_data = []
         for t in tags:
-            data.extend(scrape_via_instaloader(t))
+            backup_data.extend(scrape_via_instaloader(t))
+        data = backup_data
             
-    # 3. 저장
     if data:
         save_to_mongo(data)
+    elif data == []:
+        print("✅ Apify run successful, but returned 0 items (rare for hashtags).")
     else:
-        print("⚠️ No data collected from any source.")
+        print("⚠️ No data collected and backup also failed.")
 
 if __name__ == "__main__":
     main()
