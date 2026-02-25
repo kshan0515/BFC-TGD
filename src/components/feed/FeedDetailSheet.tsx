@@ -35,7 +35,7 @@ export default function FeedDetailSheet({ item, isOpen, onClose }: FeedDetailShe
         <Drawer.Content className="bg-white dark:bg-zinc-900 flex flex-col rounded-t-[32px] h-[92%] fixed bottom-0 left-0 right-0 z-50 outline-none">
           <div className="relative p-4 flex-1 overflow-y-auto overflow-x-hidden">
             {/* accessibility 필수 요소 */}
-            <Drawer.Title className="sr-only">{item.title || '부천FC 통검단 게시물'}</Drawer.Title>
+            <Drawer.Title className="sr-only">{item.title || '부천 축구동 게시물'}</Drawer.Title>
             <Drawer.Description className="sr-only">{item.caption || '게시물 상세 내용'}</Drawer.Description>
 
             {/* Close Button & Handle */}

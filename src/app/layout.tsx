@@ -3,13 +3,13 @@ import './globals.css';
 import { ThemeProvider } from '@/components/theme-provider';
 
 export const metadata: Metadata = {
-  title: '부천FC 1995 통합검색단 (BFC-TGD)',
-  description: '부천FC 1995 소셜 미디어 통합검색단 (부천FC 통검단, BFC-TGD)',
+  title: '부천 축구동 (BFC-TGD)',
+  description: '부천FC 1995 소셜 미디어 축구동 (부천 축구동, BFC-TGD)',
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
-    title: '부천FC 통검단',
+    title: '부천 축구동',
   },
 };
 
