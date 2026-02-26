@@ -5,7 +5,7 @@
  */
 'use client';
 
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback, useRef, useTransition } from 'react';
 import { motion } from 'framer-motion';
 import FeedGrid from '@/components/feed/FeedGrid';
 import { getFeed, FeedItem } from '@/lib/api';
@@ -23,22 +23,29 @@ export default function Home() {
   const [page, setPage] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
   const [hasMore, setHasMore] = useState(true);
+  const [isPending, startTransition] = useTransition();
   
-  // 중복 호출 방지를 위한 Ref
-  const isFetching = useRef(false);
+  // 현재 활성화된 요청의 플랫폼을 추적하여 Race Condition 방지
+  const activeRequestPlatform = useRef<string | undefined>(undefined);
 
   // 데이터 로드 로직
   const loadData = useCallback(async (isInitial: boolean, platform?: string) => {
-    if (isFetching.current || (!isInitial && !hasMore)) return;
+    // 초기 로딩 시 해당 플랫폼 요청임을 표시
+    if (isInitial) {
+      activeRequestPlatform.current = platform;
+      setItems([]); // 즉시 비워서 반응성 확보
+      setIsLoading(true);
+    }
     
-    isFetching.current = true;
-    setIsLoading(true);
-    
-    const targetPage = isInitial ? 1 : page;
-
     try {
+      const targetPage = isInitial ? 1 : page;
       const response = await getFeed(targetPage, 15, platform);
       
+      // 만약 요청이 완료되었을 때, 현재 사용자가 보고 있는 플랫폼과 다르면 결과를 버림
+      if (isInitial && activeRequestPlatform.current !== platform) {
+        return;
+      }
+
       if (isInitial) {
         setItems(response.items);
         setPage(2);
@@ -51,14 +58,24 @@ export default function Home() {
     } catch (error) {
       console.error('Error loading feed:', error);
     } finally {
-      setIsLoading(false);
-      isFetching.current = false;
+      // 로딩 상태 해제 (마지막 요청일 때만)
+      if (isInitial && activeRequestPlatform.current === platform) {
+        setIsLoading(false);
+      } else if (!isInitial) {
+        setIsLoading(false);
+      }
     }
-  }, [page, hasMore]); // 의존성 최소화
+  }, [page, hasMore]);
+
+  // 플랫폼 변경 핸들러 최적화
+  const handlePlatformChange = (platform: string | undefined) => {
+    startTransition(() => {
+      setSelectedPlatform(platform);
+    });
+  };
 
   // 플랫폼 변경 시 초기화
   useEffect(() => {
-    // 플랫폼이 바뀔 때만 초기 데이터 로드 (의존성 루프 차단)
     loadData(true, selectedPlatform);
   }, [selectedPlatform]);
 
@@ -85,7 +102,7 @@ export default function Home() {
               {PLATFORMS.map((p) => (
                 <button
                   key={String(p.id)}
-                  onClick={() => setSelectedPlatform(p.id as string)}
+                  onClick={() => handlePlatformChange(p.id as string)}
                   className={`relative px-3 py-1.5 text-[11px] font-bold transition-all z-10 ${
                     selectedPlatform === p.id 
                       ? 'text-white' 
@@ -110,8 +127,10 @@ export default function Home() {
         </div>
       </header>
 
-      {/* 피드 그리드 */}
-      <FeedGrid items={items} isLoading={isLoading} onLoadMore={handleLoadMore} />
+      {/* 피드 그리드 (isPending을 사용하여 로딩 중임을 시각화할 수도 있음) */}
+      <div className={isPending ? 'opacity-50 transition-opacity' : 'opacity-100 transition-opacity'}>
+        <FeedGrid items={items} isLoading={isLoading} onLoadMore={handleLoadMore} />
+      </div>
       
       {/* 하단 네비게이션 */}
       <nav className="fixed bottom-0 left-0 right-0 z-40 bg-white/80 dark:bg-black/80 backdrop-blur-xl border-t border-zinc-200 dark:border-zinc-800 px-6 h-16 flex items-center justify-around md:hidden">

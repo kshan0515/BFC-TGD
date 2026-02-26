@@ -12,6 +12,35 @@ interface FeedDetailSheetProps {
 }
 
 export default function FeedDetailSheet({ item, isOpen, onClose }: FeedDetailSheetProps) {
+  // 모바일 뒤로가기 연동 로직
+  useEffect(() => {
+    if (isOpen) {
+      // 1. 창이 열릴 때 히스토리에 가상의 상태 추가
+      window.history.pushState({ modalOpen: true }, '');
+
+      // 2. popstate(뒤로가기) 이벤트 핸들러 등록
+      const handlePopState = (event: PopStateEvent) => {
+        // 뒤로가기 감지 시 창 닫기 (이때 히스토리는 이미 pop된 상태)
+        onClose();
+      };
+
+      window.addEventListener('popstate', handlePopState);
+
+      return () => {
+        window.removeEventListener('popstate', handlePopState);
+      };
+    }
+  }, [isOpen, onClose]);
+
+  // 수동으로 닫기 버튼을 누를 때의 래퍼 함수
+  const handleManualClose = () => {
+    // 만약 히스토리에 가상 상태가 남아있다면 뒤로가기를 한 번 실행해줌
+    if (window.history.state?.modalOpen) {
+      window.history.back();
+    }
+    onClose();
+  };
+
   useEffect(() => {
     // 인스타그램 임베드 재활성화 로직 (React 19 Safe)
     if (isOpen && item?.platform === 'INSTA' && typeof window !== 'undefined') {
@@ -29,7 +58,7 @@ export default function FeedDetailSheet({ item, isOpen, onClose }: FeedDetailShe
   if (!item) return null;
 
   return (
-    <Drawer.Root open={isOpen} onOpenChange={(open) => !open && onClose()}>
+    <Drawer.Root open={isOpen} onOpenChange={(open) => !open && handleManualClose()}>
       <Drawer.Portal>
         <Drawer.Overlay className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50" />
         <Drawer.Content className="bg-white dark:bg-zinc-900 flex flex-col rounded-t-[32px] h-[92%] fixed bottom-0 left-0 right-0 z-50 outline-none">
@@ -42,7 +71,7 @@ export default function FeedDetailSheet({ item, isOpen, onClose }: FeedDetailShe
             <div className="flex flex-col items-center mb-6">
               <div className="w-12 h-1.5 rounded-full bg-zinc-200 mb-4" />
               <button 
-                onClick={onClose}
+                onClick={handleManualClose}
                 className="absolute right-4 top-4 p-2 rounded-full bg-zinc-100 hover:bg-zinc-200 transition-colors"
               >
                 <X size={20} className="text-zinc-600" />
