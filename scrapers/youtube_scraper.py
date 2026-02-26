@@ -14,7 +14,8 @@ MONGO_URI = os.getenv('MONGO_URI')
 DB_NAME = 'bfc-tgd'
 
 def scrape_youtube():
-    keywords = ['부천FC', '부천FC1995', 'BFC1995']
+    # keywords = ['부천FC', '부천FC1995', 'BFC1995']
+    keywords = ['부천FC', '부천FC1995']
     if not YOUTUBE_API_KEY or not MONGO_URI:
         print("❌ Error: YOUTUBE_API_KEY or MONGO_URI environment variable is not set.")
         return
