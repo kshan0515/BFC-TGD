@@ -7,32 +7,53 @@ import { useRouter } from 'next/navigation';
 
 export default function ClassicPage() {
   const [items, setItems] = useState<FeedItem[]>([]);
+  const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [focusedItem, setFocusedItem] = useState<FeedItem | null>(null);
   const [currentTime, setCurrentTime] = useState<string | null>(null);
   const router = useRouter();
   
-  // Touch gesture tracking
+  // 데이터 중복 로드 방지
+  const isFetching = useRef(false);
   const touchStart = useRef<number | null>(null);
 
-  useEffect(() => {
-    // 하이드레이션 에러 방지를 위해 클라이언트 마운트 후 시간 설정
-    setCurrentTime(new Date().toLocaleString('ko-KR'));
+  const fetchData = useCallback(async (pageNum: number) => {
+    if (isFetching.current) return;
+    isFetching.current = true;
 
-    async function fetchData() {
-      try {
-        const data = await getFeed(1, 100);
+    try {
+      const data = await getFeed(pageNum, 40);
+      if (pageNum === 1) {
         setItems(data.items);
         if (data.items.length > 0) setFocusedItem(data.items[0]);
-      } catch (error) {
-        console.error('Failed to fetch feed:', error);
-      } finally {
-        setLoading(false);
+      } else {
+        setItems(prev => [...prev, ...data.items]);
       }
+      setTotalCount(data.meta.total);
+      setHasMore(data.meta.page < data.meta.totalPages);
+      setPage(pageNum + 1);
+    } catch (error) {
+      console.error('Failed to fetch feed:', error);
+    } finally {
+      setLoading(false);
+      isFetching.current = false;
     }
-    fetchData();
   }, []);
+
+  useEffect(() => {
+    setCurrentTime(new Date().toLocaleString('ko-KR'));
+    fetchData(1);
+  }, [fetchData]);
+
+  // 리스트 끝에 도달 시 추가 데이터 로드 감시
+  useEffect(() => {
+    if (selectedIndex >= items.length - 5 && hasMore && !isFetching.current) {
+      fetchData(page);
+    }
+  }, [selectedIndex, items.length, hasMore, page, fetchData]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -161,7 +182,7 @@ export default function ClassicPage() {
 
             <div className="bg-white text-[#0000AA] px-4 py-1 font-bold flex justify-between items-center text-sm">
               <span>(↑↓)이동 (←→)페이지 (Enter)원본보기 (ESC)종료</span>
-              <span>[ 전체: {items.length}개 / 현재: {selectedIndex + 1}번째 ]</span>
+              <span>[ 전체: {totalCount}개 / 현재: {selectedIndex + 1}번째 ]</span>
             </div>
           </div>
 
@@ -208,7 +229,7 @@ export default function ClassicPage() {
         </header>
 
         {/* 1. Fixed Preview Area */}
-        <section className="flex-[0.8] min-h-0 flex flex-col border-b-2 border-white bg-black relative">
+        <section className="flex-[0.6] min-h-0 flex flex-col border-b-2 border-white bg-black relative">
           <div className="flex-1 relative flex items-center justify-center bg-black overflow-hidden">
             {focusedItem ? (
               <img key={focusedItem.id} src={focusedItem.media_uri} alt="P" className="max-w-full max-h-full object-contain" />
@@ -248,13 +269,13 @@ export default function ClassicPage() {
             {/* Moving Selection Bar */}
             <div 
               className="absolute left-0 right-0 h-10 bg-[#FFFF00] transition-all duration-150 z-0"
-              style={{ top: `calc(${(selectedIndex % 6)} * 40px)` }}
+              style={{ top: `calc(${(selectedIndex % 10)} * 40px)` }}
             ></div>
 
             {/* List Content (Paged) */}
             <div className="relative z-10">
-              {items.slice(Math.floor(selectedIndex / 6) * 6, Math.floor(selectedIndex / 6) * 6 + 6).map((item, idx) => {
-                const globalIndex = Math.floor(selectedIndex / 6) * 6 + idx;
+              {items.slice(Math.floor(selectedIndex / 10) * 10, Math.floor(selectedIndex / 10) * 10 + 10).map((item, idx) => {
+                const globalIndex = Math.floor(selectedIndex / 10) * 10 + idx;
                 const isSelected = selectedIndex === globalIndex;
                 return (
                   <div 
@@ -265,7 +286,7 @@ export default function ClassicPage() {
                     onClick={() => setSelectedIndex(globalIndex)}
                   >
                     <div className="flex items-center space-x-3 truncate">
-                      <span className="text-[10px] w-4 text-center">{items.length - globalIndex}</span>
+                      <span className="text-[10px] w-4 text-center">{totalCount - globalIndex}</span>
                       <span className="truncate text-xs">{item.title || item.caption?.substring(0, 30)}</span>
                     </div>
                     <span className="text-[9px] font-mono shrink-0 ml-2">
@@ -281,7 +302,7 @@ export default function ClassicPage() {
         <footer className="p-2 border-t-2 border-white bg-[#0000AA] flex justify-between items-center shrink-0">
           <div className="text-[10px] flex items-center space-x-1">
             <span className="text-[#FFFF00] font-bold">INDEX:</span>
-            <span>{selectedIndex + 1} / {items.length}</span>
+            <span>{selectedIndex + 1} / {totalCount}</span>
             <span className="w-1.5 h-3 bg-white animate-bounce ml-1"></span>
           </div>
           <Link href="/" className="text-[9px] border border-[#FFFF00] px-2 py-0.5 text-[#FFFF00]">(ESC)종료</Link>
