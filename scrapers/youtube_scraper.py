@@ -70,6 +70,12 @@ def scrape_youtube():
         for item in all_collected_items:
             video_id = item['id']['videoId']
             snippet = item['snippet']
+            channel_title = snippet.get('channelTitle', '')
+            
+            # 블랙리스트 채널 필터링 (저장 안함)
+            if is_excluded_channel(channel_title):
+                print(f"🚫 블랙리스트 채널 영상 건너뜀: {channel_title} - {snippet.get('title')}")
+                continue
             
             # 날짜 파싱: ISO 문자열을 datetime 객체로 변환
             pub_date_str = snippet['publishedAt']
@@ -110,6 +116,15 @@ def scrape_youtube():
 
     except Exception as e:
         print(f"❌ Critical Error: {str(e)}")
+
+def is_excluded_channel(channel_title):
+    # 제외할 채널명 리스트 (부분 일치 또는 정확한 일치 가능)
+    EXCLUDED_CHANNELS = ['안지환2015', '부천유나이티드']
+    
+    for excluded in EXCLUDED_CHANNELS:
+        if excluded in channel_title:
+            return True
+    return False
 
 if __name__ == "__main__":
     scrape_youtube()
