@@ -3,8 +3,8 @@ import './globals.css';
 import { ThemeProvider } from '@/components/theme-provider';
 
 export const metadata: Metadata = {
-  title: '부천 축구동 (BFC-TGD)',
-  description: '부천FC 1995 소셜 미디어 축구동 (부천 축구동, BFC-TGD)',
+  title: '부천 축구동',
+  description: '부천FC 소셜 미디어 축구동 (부천 축구동)',
   manifest: '/manifest.json',
   icons: {
     icon: '/favicon.svg',

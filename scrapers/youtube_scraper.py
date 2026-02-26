@@ -1,5 +1,4 @@
 """
-BFC-TGD (Bucheon Football Village - 부천 축구동)
 Copyright (c) 2026 kshan0515. Licensed under the MIT License.
 Created with ❤️ for Bucheon FC 1995 Fans.
 """

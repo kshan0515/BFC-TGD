@@ -1,5 +1,4 @@
 /**
- * BFC-TGD (Bucheon Football Village - 부천 축구동)
  * 조회수 상위 인기 영상을 수집하여 초기 DB를 채웁니다. (Node.js 버전)
  */
 const { MongoClient } = require('mongodb');

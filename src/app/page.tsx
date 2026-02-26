@@ -1,5 +1,4 @@
 /**
- * BFC-TGD (Bucheon Football Village - 부천 축구동)
  * Copyright (c) 2026 kshan0515. Licensed under the MIT License.
  * Created with ❤️ for Bucheon FC 1995 Fans.
  */
@@ -25,24 +24,30 @@ export default function Home() {
   const [hasMore, setHasMore] = useState(true);
   const [isPending, startTransition] = useTransition();
   
-  // 현재 활성화된 요청의 플랫폼을 추적하여 Race Condition 방지
-  const activeRequestPlatform = useRef<string | undefined>(undefined);
+  // 상태 관리를 위한 Ref들
+  const isFetching = useRef(false);
+  const activePlatform = useRef<string | undefined>(undefined);
 
   // 데이터 로드 로직
   const loadData = useCallback(async (isInitial: boolean, platform?: string) => {
-    // 초기 로딩 시 해당 플랫폼 요청임을 표시
+    if (isFetching.current) return;
+    if (!isInitial && !hasMore) return;
+
+    isFetching.current = true;
+    
     if (isInitial) {
-      activeRequestPlatform.current = platform;
-      setItems([]); // 즉시 비워서 반응성 확보
+      activePlatform.current = platform;
+      setItems([]); 
       setIsLoading(true);
+      setPage(1);
     }
     
     try {
       const targetPage = isInitial ? 1 : page;
       const response = await getFeed(targetPage, 15, platform);
       
-      // 만약 요청이 완료되었을 때, 현재 사용자가 보고 있는 플랫폼과 다르면 결과를 버림
-      if (isInitial && activeRequestPlatform.current !== platform) {
+      // 응답 시점의 플랫폼이 현재 선택된 플랫폼과 다르면 무시
+      if (isInitial && activePlatform.current !== platform) {
         return;
       }
 
@@ -58,16 +63,12 @@ export default function Home() {
     } catch (error) {
       console.error('Error loading feed:', error);
     } finally {
-      // 로딩 상태 해제 (마지막 요청일 때만)
-      if (isInitial && activeRequestPlatform.current === platform) {
-        setIsLoading(false);
-      } else if (!isInitial) {
-        setIsLoading(false);
-      }
+      isFetching.current = false;
+      setIsLoading(false);
     }
   }, [page, hasMore]);
 
-  // 플랫폼 변경 핸들러 최적화
+  // 플랫폼 변경 핸들러
   const handlePlatformChange = (platform: string | undefined) => {
     startTransition(() => {
       setSelectedPlatform(platform);
@@ -80,7 +81,9 @@ export default function Home() {
   }, [selectedPlatform]);
 
   const handleLoadMore = () => {
-    loadData(false, selectedPlatform);
+    if (!isLoading && hasMore) {
+      loadData(false, selectedPlatform);
+    }
   };
 
   return (
