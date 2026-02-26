@@ -32,7 +32,7 @@ def scrape_via_apify(tags):
     
     run_input = {
         "hashtags": tags,
-        "resultsLimit": 20, # 2시간 주기 내의 신규물 누락 방지 최적값
+        "resultsLimit": 20,
     }
     
     try:
