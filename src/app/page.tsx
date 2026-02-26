@@ -1,5 +1,5 @@
 /**
- * BFC-TGD (Bucheon FC 1995 Integrated Search Agent)
+ * BFC-TGD (Bucheon Football Village - 부천 축구동)
  * Copyright (c) 2026 kshan0515. Licensed under the MIT License.
  * Created with ❤️ for Bucheon FC 1995 Fans.
  */
@@ -74,12 +74,8 @@ export default function Home() {
           <div className="flex items-center gap-1.5 cursor-pointer" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
             <h1 className="text-lg sm:text-xl tracking-normal flex items-center font-black">
               <span className="text-red-600">부천</span>
-              <span className="text-zinc-900 dark:text-white mr-2">FC</span>
-              <span className="text-red-600">통</span>
-              <span className="text-zinc-900 dark:text-white mx-[1px]">합</span>
-              <span className="text-red-600">검</span>
-              <span className="text-zinc-900 dark:text-white mx-[1px]">색</span>
-              <span className="text-red-600">단</span>
+              <span className="text-zinc-900 dark:text-white mx-[2px]">축구</span>
+              <span className="text-red-600">동</span>
             </h1>
           </div>
           <div className="flex items-center gap-3">
