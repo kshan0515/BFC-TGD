@@ -203,7 +203,7 @@ export default function ClassicPage() {
                   <div className="w-full h-full flex items-center justify-center text-gray-600 italic text-sm">NO DATA</div>
                 )}
                 <div className="absolute bottom-0 right-0 bg-black text-white text-[10px] px-1 opacity-70 font-mono">
-                  {focusedItem?.platform} DATA RECEIVED
+                  {focusedItem?.platform === 'INSTA' ? '인스타' : focusedItem?.platform === 'YOUTUBE' ? '유튜브' : ''}
                 </div>
               </div>
               <div className="mt-3 text-xs space-y-2 opacity-90">
@@ -229,7 +229,7 @@ export default function ClassicPage() {
         </header>
 
         {/* 1. Fixed Preview Area */}
-        <section className="flex-[0.6] min-h-0 flex flex-col border-b-2 border-white bg-black relative">
+        <section className="flex-[0.5] min-h-0 flex flex-col border-b-2 border-white bg-black relative">
           <div className="flex-1 relative flex items-center justify-center bg-black overflow-hidden">
             {focusedItem ? (
               <img key={focusedItem.id} src={focusedItem.media_uri} alt="P" className="max-w-full max-h-full object-contain" />
@@ -237,8 +237,8 @@ export default function ClassicPage() {
               <div className="text-gray-600 italic text-xs">데이터 대기 중...</div>
             )}
             <div className="absolute top-2 left-2 flex gap-1">
-              <div className="bg-[#0000AA] border border-white px-1.5 py-0.5 text-[9px] font-mono">
-                {focusedItem?.platform || 'SYS'} STREAM: OK
+              <div className="bg-[#0000AA] border border-white px-1.5 py-0.5 text-[9px] font-mono font-bold">
+                {focusedItem?.platform === 'INSTA' ? '인스타' : focusedItem?.platform === 'YOUTUBE' ? '유튜브' : '시스템'}
               </div>
               {focusedItem && (
                 <a 
@@ -251,8 +251,8 @@ export default function ClassicPage() {
               )}
             </div>
           </div>
-          <div className="h-16 bg-[#0000AA] border-t border-white p-2 overflow-y-auto shrink-0 font-mono">
-            <p className="text-[10px] leading-[1.3] opacity-90 line-clamp-3 italic text-[#FFFF00]">
+          <div className="h-14 bg-[#0000AA] border-t border-white p-2 overflow-y-auto shrink-0 font-mono">
+            <p className="text-[10px] leading-[1.3] opacity-90 line-clamp-2 italic text-[#FFFF00]">
               &gt; {focusedItem?.title || focusedItem?.caption?.substring(0, 60) || '정보 없음'}
             </p>
           </div>
@@ -260,27 +260,26 @@ export default function ClassicPage() {
 
         {/* 2. Fixed List with Moving Cursor */}
         <section className="flex-1 min-h-0 bg-[#0000AA] relative overflow-hidden flex flex-col">
-          <div className="p-2 text-[10px] text-[#FFFF00] border-b border-white/30 shrink-0 flex justify-between">
+          <div className="p-1.5 text-[9px] text-[#FFFF00] border-b border-white/30 shrink-0 flex justify-between items-center">
             <span>[ 게시물 리스트 ]</span>
-            <span>▲▼ 스와이프로 이동</span>
           </div>
           
           <div className="flex-1 relative overflow-hidden">
-            {/* Moving Selection Bar */}
+            {/* Moving Selection Bar (Percentage based) */}
             <div 
-              className="absolute left-0 right-0 h-10 bg-[#FFFF00] transition-all duration-150 z-0"
-              style={{ top: `calc(${(selectedIndex % 10)} * 40px)` }}
+              className="absolute left-0 right-0 h-[10%] bg-[#FFFF00] transition-all duration-150 z-0"
+              style={{ top: `${(selectedIndex % 10) * 10}%` }}
             ></div>
 
-            {/* List Content (Paged) */}
-            <div className="relative z-10">
+            {/* List Content (Paged Grid) */}
+            <div className="relative z-10 h-full grid grid-rows-10">
               {items.slice(Math.floor(selectedIndex / 10) * 10, Math.floor(selectedIndex / 10) * 10 + 10).map((item, idx) => {
                 const globalIndex = Math.floor(selectedIndex / 10) * 10 + idx;
                 const isSelected = selectedIndex === globalIndex;
                 return (
                   <div 
                     key={item.id}
-                    className={`h-10 px-4 flex items-center justify-between transition-colors duration-150
+                    className={`px-4 flex items-center justify-between transition-colors duration-150
                       ${isSelected ? 'text-[#0000AA] font-bold' : 'text-white opacity-60'}
                     `}
                     onClick={() => setSelectedIndex(globalIndex)}
@@ -299,13 +298,47 @@ export default function ClassicPage() {
           </div>
         </section>
 
-        <footer className="p-2 border-t-2 border-white bg-[#0000AA] flex justify-between items-center shrink-0">
-          <div className="text-[10px] flex items-center space-x-1">
-            <span className="text-[#FFFF00] font-bold">INDEX:</span>
+        <footer className="p-3 border-t-2 border-white bg-[#0000AA] flex justify-between items-center shrink-0 min-h-[60px]">
+          <div className="text-[10px] flex flex-col items-start gap-0.5">
+            <span className="text-[#FFFF00] font-bold uppercase">Index</span>
             <span>{selectedIndex + 1} / {totalCount}</span>
-            <span className="w-1.5 h-3 bg-white animate-bounce ml-1"></span>
           </div>
-          <Link href="/" className="text-[9px] border border-[#FFFF00] px-2 py-0.5 text-[#FFFF00]">(ESC)종료</Link>
+
+          {/* D-Pad Controller (Compact Horizontal) */}
+          <div className="flex items-center gap-1 bg-zinc-100/10 p-1 rounded-lg">
+            <button 
+              onClick={() => setSelectedIndex(prev => Math.max(prev - 10, 0))}
+              className="w-7 h-7 border border-white flex items-center justify-center text-[10px] active:bg-white active:text-[#0000AA] font-bold"
+              title="이전 페이지"
+            >
+              ◀
+            </button>
+            <button 
+              onClick={() => setSelectedIndex(prev => Math.max(prev - 1, 0))}
+              className="w-7 h-7 border border-white flex items-center justify-center text-[10px] active:bg-white active:text-[#0000AA] font-bold"
+              title="위로"
+            >
+              ▲
+            </button>
+            <button 
+              onClick={() => setSelectedIndex(prev => Math.min(prev + 1, items.length - 1))}
+              className="w-7 h-7 border border-white flex items-center justify-center text-[10px] active:bg-white active:text-[#0000AA] font-bold"
+              title="아래로"
+            >
+              ▼
+            </button>
+            <button 
+              onClick={() => setSelectedIndex(prev => Math.min(prev + 10, items.length - 1))}
+              className="w-7 h-7 border border-white flex items-center justify-center text-[10px] active:bg-white active:text-[#0000AA] font-bold"
+              title="다음 페이지"
+            >
+              ▶
+            </button>
+          </div>
+
+          <Link href="/" className="text-[10px] border-2 border-[#FFFF00] px-3 py-1.5 text-[#FFFF00] font-bold active:bg-[#FFFF00] active:text-[#0000AA]">
+            종료
+          </Link>
         </footer>
       </div>
 
