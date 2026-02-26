@@ -10,15 +10,19 @@ export default function ClassicPage() {
   const [loading, setLoading] = useState(true);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [focusedItem, setFocusedItem] = useState<FeedItem | null>(null);
+  const [currentTime, setCurrentTime] = useState<string | null>(null);
   const router = useRouter();
   
   // Touch gesture tracking
   const touchStart = useRef<number | null>(null);
 
   useEffect(() => {
+    // 하이드레이션 에러 방지를 위해 클라이언트 마운트 후 시간 설정
+    setCurrentTime(new Date().toLocaleString('ko-KR'));
+
     async function fetchData() {
       try {
-        const data = await getFeed(1, 40);
+        const data = await getFeed(1, 100);
         setItems(data.items);
         if (data.items.length > 0) setFocusedItem(data.items[0]);
       } catch (error) {
@@ -28,13 +32,39 @@ export default function ClassicPage() {
       }
     }
     fetchData();
+  }, []);
 
+  useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') router.push('/');
+
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setSelectedIndex(prev => Math.min(prev + 1, items.length - 1));
+      }
+      if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setSelectedIndex(prev => Math.max(prev - 1, 0));
+      }
+      if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        // 다음 페이지(15개 뒤)로 점프
+        setSelectedIndex(prev => Math.min(prev + 15, items.length - 1));
+      }
+      if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        // 이전 페이지(15개 앞)로 점프
+        setSelectedIndex(prev => Math.max(prev - 15, 0));
+      }
+      if (e.key === 'Enter') {
+        if (items[selectedIndex]) {
+          window.open(items[selectedIndex].origin_url, '_blank');
+        }
+      }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [router]);
+  }, [router, items, selectedIndex]);
 
   // Index가 변경될 때마다 focusedItem 업데이트
   useEffect(() => {
@@ -88,8 +118,8 @@ export default function ClassicPage() {
         <div className="grid grid-cols-12 gap-6">
           <div className="col-span-8">
             <header className="text-center border-b-2 border-white pb-2 mb-6">
-              <h1 className="text-2xl font-bold tracking-widest">*** 하이텔 축구동 - 부천 축구동 정보망 ***</h1>
-              <p className="text-base mt-1">접속 시간: {new Date().toLocaleString('ko-KR')}</p>
+              <h1 className="text-2xl font-bold tracking-widest">*** 부천 축구동 - 온라인 정보망 ***</h1>
+              <p className="text-base mt-1">접속 시간: {currentTime || '데이터 수신 중...'}</p>
             </header>
 
             <div className="mb-6 flex justify-between text-[#FFFF00] text-lg">
@@ -109,11 +139,10 @@ export default function ClassicPage() {
                 <div className="text-center py-10 animate-pulse text-gray-400">데이터 수신 중...</div>
               ) : (
                 items.map((item, index) => (
-                  <Link 
+                  <div 
                     key={item.id} 
-                    href={item.origin_url}
-                    target="_blank"
                     onMouseEnter={() => setSelectedIndex(index)}
+                    onClick={() => window.open(item.origin_url, '_blank')}
                     className={`grid grid-cols-12 gap-2 transition-colors py-0.5 cursor-pointer group
                       ${selectedIndex === index ? 'bg-[#FFFF00] text-[#0000AA]' : ''}
                     `}
@@ -121,18 +150,30 @@ export default function ClassicPage() {
                     <div className="col-span-1 text-center text-gray-400 group-hover:text-inherit font-normal">{items.length - index}</div>
                     <div className="col-span-2 text-center truncate">[{item.platform === 'INSTA' ? '인스타' : '유튜브'}]</div>
                     <div className="col-span-7 truncate">{item.title || item.caption?.substring(0, 40) || '제목 없음'}</div>
-                    <div className="col-span-2 text-right font-mono text-sm">{new Date(item.published_at).toLocaleDateString().substring(5)}</div>
-                  </Link>
+                    <div className="col-span-2 text-right font-mono text-sm">
+                      {currentTime ? new Date(item.published_at).toLocaleDateString().substring(5) : '.. . ..'}
+                    </div>
+                  </div>
                 ))
+                .slice(Math.floor(selectedIndex / 15) * 15, Math.floor(selectedIndex / 15) * 15 + 15)
               )}
+            </div>
+
+            <div className="bg-white text-[#0000AA] px-4 py-1 font-bold flex justify-between items-center text-sm">
+              <span>(↑↓)이동 (←→)페이지 (Enter)원본보기 (ESC)종료</span>
+              <span>[ 전체: {items.length}개 / 현재: {selectedIndex + 1}번째 ]</span>
             </div>
           </div>
 
           <div className="col-span-4 sticky top-4 h-fit">
             <div className="border-2 border-white p-2 bg-[#0000AA]">
-              <div className="bg-white text-[#0000AA] px-2 mb-2 font-bold flex justify-between">
+              <div className="bg-white text-[#0000AA] px-2 mb-2 font-bold flex justify-between text-xs">
                 <span>[ 미리보기: VGA ]</span>
-                <span>X</span>
+                {focusedItem && (
+                  <a href={focusedItem.origin_url} target="_blank" className="text-red-600 hover:underline">
+                    [ 원본 게시물 보기 ]
+                  </a>
+                )}
               </div>
               <div className="relative aspect-square border border-white overflow-hidden bg-black">
                 {focusedItem ? (
@@ -163,7 +204,7 @@ export default function ClassicPage() {
         onTouchMove={handleTouchMove}
       >
         <header className="p-2 border-b-2 border-white bg-[#0000AA] shrink-0">
-          <h1 className="text-base font-bold tracking-tighter">*** 하이텔 뷰어 - 부천 축구동 ***</h1>
+          <h1 className="text-base font-bold tracking-tighter">*** 부천 축구동 - 모바일 뷰어 ***</h1>
         </header>
 
         {/* 1. Fixed Preview Area */}
@@ -174,8 +215,19 @@ export default function ClassicPage() {
             ) : (
               <div className="text-gray-600 italic text-xs">데이터 대기 중...</div>
             )}
-            <div className="absolute top-2 left-2 bg-[#0000AA] border border-white px-1.5 py-0.5 text-[9px] font-mono">
-              {focusedItem?.platform || 'SYS'} STREAM: OK
+            <div className="absolute top-2 left-2 flex gap-1">
+              <div className="bg-[#0000AA] border border-white px-1.5 py-0.5 text-[9px] font-mono">
+                {focusedItem?.platform || 'SYS'} STREAM: OK
+              </div>
+              {focusedItem && (
+                <a 
+                  href={focusedItem.origin_url} 
+                  target="_blank" 
+                  className="bg-[#FFFF00] text-[#0000AA] border border-white px-1.5 py-0.5 text-[9px] font-bold font-mono"
+                >
+                  [원본보기]
+                </a>
+              )}
             </div>
           </div>
           <div className="h-16 bg-[#0000AA] border-t border-white p-2 overflow-y-auto shrink-0 font-mono">
@@ -210,14 +262,14 @@ export default function ClassicPage() {
                     className={`h-10 px-4 flex items-center justify-between transition-colors duration-150
                       ${isSelected ? 'text-[#0000AA] font-bold' : 'text-white opacity-60'}
                     `}
-                    onClick={() => window.open(item.origin_url, '_blank')}
+                    onClick={() => setSelectedIndex(globalIndex)}
                   >
                     <div className="flex items-center space-x-3 truncate">
                       <span className="text-[10px] w-4 text-center">{items.length - globalIndex}</span>
                       <span className="truncate text-xs">{item.title || item.caption?.substring(0, 30)}</span>
                     </div>
                     <span className="text-[9px] font-mono shrink-0 ml-2">
-                      {new Date(item.published_at).toLocaleDateString().substring(5)}
+                      {currentTime ? new Date(item.published_at).toLocaleDateString().substring(5) : '.. . ..'}
                     </span>
                   </div>
                 );
@@ -232,7 +284,7 @@ export default function ClassicPage() {
             <span>{selectedIndex + 1} / {items.length}</span>
             <span className="w-1.5 h-3 bg-white animate-bounce ml-1"></span>
           </div>
-          <Link href="/" className="text-[9px] border border-[#FFFF00] px-2 py-0.5 text-[#FFFF00]">나가기</Link>
+          <Link href="/" className="text-[9px] border border-[#FFFF00] px-2 py-0.5 text-[#FFFF00]">(ESC)종료</Link>
         </footer>
       </div>
 
