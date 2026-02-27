@@ -119,7 +119,7 @@ def scrape_youtube():
 
 def is_excluded_channel(channel_title):
     # 제외할 채널명 리스트 (부분 일치 또는 정확한 일치 가능)
-    EXCLUDED_CHANNELS = ['안지환2015', '부천유나이티드']
+    EXCLUDED_CHANNELS = ['안지환2015', '부천유나이티드', '태산축구', '신용산축구부']
     
     for excluded in EXCLUDED_CHANNELS:
         if excluded in channel_title:
