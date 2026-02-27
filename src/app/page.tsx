@@ -100,14 +100,14 @@ export default function Home() {
             </h1>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1">
              <Link 
               href="/classic" 
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-zinc-100 dark:bg-zinc-900 text-zinc-500 dark:text-zinc-400 hover:bg-red-600 hover:text-white transition-all font-bold text-[10px]"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-zinc-500 hover:text-red-600 dark:text-zinc-400 dark:hover:text-red-500 hover:bg-zinc-100 dark:hover:bg-zinc-900 transition-all active:scale-95 group"
               title="클래식 모드 (1995s)"
              >
-               <span>📺</span>
-               <span className="hidden sm:inline">1995s</span>
+               <span className="text-base leading-none grayscale group-hover:grayscale-0 transition-all">📺</span>
+               <span className="text-[10px] font-bold uppercase tracking-tight">1995s</span>
              </Link>
              <ThemeToggle />
           </div>

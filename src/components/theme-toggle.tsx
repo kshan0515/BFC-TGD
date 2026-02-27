@@ -20,11 +20,16 @@ export function ThemeToggle() {
   return (
     <button
       onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-      className="relative p-2 rounded-xl bg-zinc-100 dark:bg-zinc-900 border border-transparent dark:border-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-800 transition-all group"
+      className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-900 transition-all active:scale-95"
       aria-label="Toggle Theme"
     >
-      <Sun className="h-[1.2rem] w-[1.2rem] rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0 text-amber-500" />
-      <Moon className="absolute h-[1.2rem] w-[1.2rem] rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100 top-2 left-2 text-blue-400" />
+      <div className="relative w-4 h-4">
+        <Sun className="absolute inset-0 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0 text-amber-500" size={16} />
+        <Moon className="absolute inset-0 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100 text-indigo-400" size={16} />
+      </div>
+      <span className="text-[10px] font-bold uppercase tracking-tight">
+        {theme === 'dark' ? '다크' : '라이트'}
+      </span>
     </button>
   );
 }
