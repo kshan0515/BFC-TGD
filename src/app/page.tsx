@@ -8,6 +8,7 @@ import { useEffect, useState, useCallback, useRef, useTransition } from 'react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import FeedGrid from '@/components/feed/FeedGrid';
+import MatchSchedule from '@/components/match/MatchSchedule';
 import { getFeed, FeedItem } from '@/lib/api';
 import { ThemeToggle } from '@/components/theme-toggle';
 
@@ -20,6 +21,7 @@ const PLATFORMS = [
 export default function Home() {
   const [items, setItems] = useState<FeedItem[]>([]);
   const [selectedPlatform, setSelectedPlatform] = useState<string | undefined>(undefined);
+  const [activeTab, setActiveTab] = useState<'home' | 'match'>('home');
   const [page, setPage] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
   const [hasMore, setHasMore] = useState(true);
@@ -31,6 +33,7 @@ export default function Home() {
 
   // 데이터 로드 로직
   const loadData = useCallback(async (isInitial: boolean, platform?: string) => {
+    if (activeTab !== 'home') return;
     if (isFetching.current) return;
     if (!isInitial && !hasMore) return;
 
@@ -47,7 +50,6 @@ export default function Home() {
       const targetPage = isInitial ? 1 : page;
       const response = await getFeed(targetPage, 15, platform);
       
-      // 응답 시점의 플랫폼이 현재 선택된 플랫폼과 다르면 무시
       if (isInitial && activePlatform.current !== platform) {
         return;
       }
@@ -67,7 +69,7 @@ export default function Home() {
       isFetching.current = false;
       setIsLoading(false);
     }
-  }, [page, hasMore]);
+  }, [page, hasMore, activeTab]);
 
   // 플랫폼 변경 핸들러
   const handlePlatformChange = (platform: string | undefined) => {
@@ -78,8 +80,10 @@ export default function Home() {
 
   // 플랫폼 변경 시 초기화
   useEffect(() => {
-    loadData(true, selectedPlatform);
-  }, [selectedPlatform]);
+    if (activeTab === 'home') {
+      loadData(true, selectedPlatform);
+    }
+  }, [selectedPlatform, activeTab]);
 
   const handleLoadMore = () => {
     if (!isLoading && hasMore) {
@@ -92,11 +96,14 @@ export default function Home() {
       {/* 초슬림 고정 헤더 */}
       <header className="sticky top-0 z-40 w-full bg-white/70 dark:bg-black/70 backdrop-blur-xl border-b border-zinc-100 dark:border-zinc-900/50">
         <div className="container mx-auto px-4 h-14 flex items-center justify-between">
-          <div className="flex items-center gap-1.5 cursor-pointer" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
+          <div className="flex items-center gap-1.5 cursor-pointer" onClick={() => {
+            setActiveTab('home');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }}>
             <h1 className="text-base sm:text-lg tracking-tight flex items-center font-black">
               <span className="text-red-600">부천</span>
               <span className="text-zinc-900 dark:text-white mr-1.5">FC</span>
-              <span className="text-zinc-400 dark:text-zinc-500 font-medium text-[10px] tracking-tighter">통합검색단</span>
+              <span className="text-zinc-400 dark:text-zinc-500 font-bold text-[10px] tracking-tighter ml-0.5">통합검색단</span>
             </h1>
           </div>
 
@@ -114,40 +121,66 @@ export default function Home() {
         </div>
       </header>
 
-      {/* 피드 컨텐츠 영역 */}
+      {/* 탭 컨텐츠 영역 */}
       <div className="relative z-10">
-        <div className={isPending ? 'opacity-50 transition-opacity' : 'opacity-100'}>
-          <FeedGrid items={items} isLoading={isLoading} onLoadMore={handleLoadMore} />
-        </div>
+        {activeTab === 'home' ? (
+          <div className={isPending ? 'opacity-50 transition-opacity' : 'opacity-100'}>
+            <FeedGrid items={items} isLoading={isLoading} onLoadMore={handleLoadMore} />
+          </div>
+        ) : (
+          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <MatchSchedule />
+          </div>
+        )}
       </div>
 
-      {/* 플로팅 플랫폼 필터 (단독 배치) */}
-      <div className="fixed bottom-8 left-0 right-0 z-40 flex justify-center pointer-events-none px-4">
-        <div className="pointer-events-auto bg-zinc-900/90 dark:bg-zinc-800/90 backdrop-blur-2xl p-1.5 rounded-2xl border border-white/10 shadow-2xl shadow-black/50 flex gap-1 max-w-sm w-full sm:w-auto">
-          {PLATFORMS.map((p) => (
-            <button
-              key={String(p.id)}
-              onClick={() => handlePlatformChange(p.id as string)}
-              className={`relative flex-1 sm:flex-none sm:px-6 py-2.5 rounded-xl text-[11px] font-black transition-all ${
-                selectedPlatform === p.id 
-                  ? 'text-white' 
-                  : 'text-zinc-500 hover:text-zinc-300'
-              }`}
-            >
-              {selectedPlatform === p.id && (
-                <motion.div
-                  layoutId="activeFilter"
-                  className="absolute inset-0 bg-red-600 rounded-xl -z-10 shadow-lg shadow-red-600/20"
-                  transition={{ type: 'spring', bounce: 0.2, duration: 0.5 }}
-                />
-              )}
-              <span className="flex items-center justify-center gap-2">
-                <span className="text-sm">{p.icon}</span>
-                <span>{p.label}</span>
-              </span>
-            </button>
-          ))}
-        </div>
+      {/* 하단 플로팅 인터페이스 그룹 */}
+      <div className="fixed bottom-8 left-0 right-0 z-40 flex items-end justify-center gap-3 px-4 pointer-events-none">
+        {/* 1. 플랫폼 필터 (홈 탭에서만 표시) */}
+        {activeTab === 'home' && (
+          <div className="pointer-events-auto bg-white/80 dark:bg-zinc-900/90 backdrop-blur-2xl p-1.5 rounded-2xl border border-zinc-200 dark:border-white/10 shadow-2xl flex gap-1 max-w-sm">
+            {PLATFORMS.map((p) => (
+              <button
+                key={String(p.id)}
+                onClick={() => handlePlatformChange(p.id as string)}
+                className={`relative px-3 pt-2.5 pb-1.5 rounded-xl transition-all flex flex-col items-center gap-1 min-w-[50px] ${
+                  selectedPlatform === p.id 
+                    ? 'text-white' 
+                    : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-200'
+                }`}
+              >
+                {selectedPlatform === p.id && (
+                  <motion.div
+                    layoutId="activeFilter"
+                    className="absolute inset-0 bg-red-600 rounded-xl -z-10 shadow-lg shadow-red-600/20"
+                    transition={{ type: 'spring', bounce: 0.2, duration: 0.5 }}
+                  />
+                )}
+                <span className="text-base leading-none">{p.icon}</span>
+                <span className="text-[9px] font-black uppercase tracking-tighter">{p.label}</span>
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* 2. 경기 일정 전환 플로팅 버튼 (FAB) */}
+        <button
+          onClick={() => {
+            setActiveTab(prev => prev === 'home' ? 'match' : 'home');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }}
+          className={`pointer-events-auto w-14 h-14 rounded-2xl flex flex-col items-center justify-center gap-1 shadow-2xl border transition-all active:scale-90 ${
+            activeTab === 'match'
+              ? 'bg-red-600 border-red-500 text-white shadow-red-600/40'
+              : 'bg-white dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 text-zinc-900 dark:text-white shadow-black/20'
+          }`}
+          title={activeTab === 'home' ? '경기 일정 보기' : '피드로 돌아가기'}
+        >
+          <span className="text-xl leading-none">{activeTab === 'home' ? '📅' : '🏠'}</span>
+          <span className={`text-[9px] font-black ${activeTab === 'match' ? 'text-white' : 'text-zinc-500 dark:text-zinc-400'}`}>
+            {activeTab === 'home' ? '일정' : '홈'}
+          </span>
+        </button>
       </div>
     </main>
   );
